@@ -1,0 +1,20 @@
+{
+  "name": "novel-chat-app",
+  "version": "1.0.0",
+  "description": "Smart Novel AI Chat & Co-Writer Application with Real-time Thinking Process Streaming and Supabase Integration",
+  "scripts": {
+    "dev": "npm --prefix backend run dev",
+    "start": "npm --prefix backend start",
+    "test": "node test-core.js && npm --prefix backend test"
+  },
+  "keywords": [
+    "novel",
+    "ai",
+    "chat",
+    "streaming",
+    "thinking-process",
+    "supabase"
+  ],
+  "author": "",
+  "license": "ISC"
+}
