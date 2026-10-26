@@ -4,14 +4,20 @@
  */
 
 const assert = require('assert');
-const { app, server } = require('../src/server');
+const { app, startServer } = require('../src/server');
 
 async function runE2eTests() {
   console.log('========================================');
   console.log('🧪 รัน E2E Server & Streaming Test');
   console.log('========================================\n');
 
-  const port = server.address().port;
+  const activeServer = startServer(0);
+  await new Promise((resolve) => {
+    if (activeServer.listening) return resolve();
+    activeServer.once('listening', resolve);
+  });
+
+  const port = activeServer.address().port;
   const baseUrl = `http://localhost:${port}`;
 
   let passed = 0;
@@ -112,7 +118,7 @@ async function runE2eTests() {
   console.log(`📊 ผลการทดสอบ: ผ่าน ${passed} ข้อ | ไม่ผ่าน ${failed} ข้อ`);
   console.log('========================================');
 
-  server.close(() => {
+  activeServer.close(() => {
     process.exit(failed > 0 ? 1 : 0);
   });
   setTimeout(() => process.exit(failed > 0 ? 1 : 0), 500);
@@ -120,6 +126,5 @@ async function runE2eTests() {
 
 runE2eTests().catch((err) => {
   console.error(err);
-  server.close();
   process.exit(1);
 });

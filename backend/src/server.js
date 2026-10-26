@@ -50,15 +50,25 @@ app.use((err, req, res, next) => {
 });
 
 // ================= Start Server =================
-const server = app.listen(config.port, () => {
-  console.log('========================================================');
-  console.log('🚀 Novel AI Backend Server ทำงานสำเร็จแล้ว!');
-  console.log(`📡 URL เซิร์ฟเวอร์: http://localhost:${config.port}`);
-  console.log(`🔌 Health Check:  http://localhost:${config.port}/api/health`);
-  console.log(`💬 Stream Endpoint: POST http://localhost:${config.port}/api/chat/stream`);
-  console.log(`🗄️ Supabase URL:   ${config.supabase.url || '(ยังไม่ได้ระบุ)'}`);
-  console.log(`🤖 AI Provider:    ${config.ai.provider} (${config.ai.defaultModel})`);
-  console.log('========================================================');
-});
+let server = null;
 
-module.exports = { app, server };
+function startServer(port = config.port) {
+  if (server) return server;
+  server = app.listen(port, () => {
+    console.log('========================================================');
+    console.log('🚀 Novel AI Backend Server ทำงานสำเร็จแล้ว!');
+    console.log(`📡 URL เซิร์ฟเวอร์: http://localhost:${port}`);
+    console.log(`🔌 Health Check:  http://localhost:${port}/api/health`);
+    console.log(`💬 Stream Endpoint: POST http://localhost:${port}/api/chat/stream`);
+    console.log(`🗄️ Supabase URL:   ${config.supabase.url || '(ยังไม่ได้ระบุ)'}`);
+    console.log(`🤖 AI Provider:    ${config.ai.provider} (${config.ai.defaultModel})`);
+    console.log('========================================================');
+  });
+  return server;
+}
+
+if (require.main === module) {
+  startServer(config.port);
+}
+
+module.exports = { app, server, startServer };

@@ -28,12 +28,14 @@ async function streamGeminiChat({
     throw new Error('ไม่พบ Gemini API Key กรุณาระบุใน backend/.env หรือส่งผ่านหน้าบ้าน');
   }
 
-  const preferredModel = model || config.ai.defaultModel || 'gemini-3.8-flash';
-  const modelsToTry = [
+  const preferredModel = model || config.ai.defaultModel || 'gemini-3.1-flash-lite';
+  const candidateModels = [
     preferredModel,
-    preferredModel !== 'gemini-3.8-flash' ? 'gemini-3.8-flash' : null,
-    preferredModel !== 'gemini-2.5-flash' ? 'gemini-2.5-flash' : null,
-  ].filter(Boolean);
+    'gemini-3.1-flash-lite',
+    'gemini-3.5-flash',
+    'gemini-flash-lite-latest',
+  ];
+  const modelsToTry = [...new Set(candidateModels.filter(Boolean))];
 
   const fullPrompt = [
     systemInstruction,
@@ -56,6 +58,7 @@ async function streamGeminiChat({
       maxOutputTokens: 4096,
       thinkingConfig: {
         includeThoughts: true,
+        thinkingBudget: 512,
       },
     },
   };
@@ -68,12 +71,17 @@ async function streamGeminiChat({
       modelName,
     )}:streamGenerateContent?alt=sse&key=${encodeURIComponent(activeKey)}`;
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     try {
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (res.ok) {
         response = res;
@@ -82,12 +90,19 @@ async function streamGeminiChat({
 
       const errText = await res.text().catch(() => '');
       lastError = new Error(`Gemini API (${modelName}) HTTP ${res.status}: ${errText}`);
-      // หากเกิดข้อผิดพลาด 404 (เช่น โมเดลเลิกให้บริการ) ให้ลองโมเดลถัดไป
-      if (res.status !== 404 && res.status !== 400) {
+      // หากพบว่า API Key ไม่ถูกต้อง (401/403) ให้แจ้งเตือนทันทีโดยไม่วนต่อ
+      if (res.status === 401 || res.status === 403) {
         throw lastError;
       }
+      console.warn(`[Gemini Notice] โมเดล ${modelName} ตอบกลับ HTTP ${res.status} กำลังสลับไปโมเดลสำรอง...`);
     } catch (err) {
+      clearTimeout(timeoutId);
       lastError = err;
+      if (err.name === 'AbortError') {
+        console.warn(`[Gemini Timeout] โมเดล ${modelName} ไม่ตอบสนองใน 10 วินาที กำลังสลับไปโมเดลสำรอง...`);
+      } else if (err.status === 401 || err.status === 403) {
+        throw err;
+      }
     }
   }
 

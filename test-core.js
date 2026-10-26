@@ -186,6 +186,13 @@ function runTests() {
   assert(splitE.hasCanvasContent === true, 'รองรับ Backward compatibility กับ [STORY_START]');
   assert(splitE.canvasText === 'เนื้อเรื่องเวอร์ชันเก่า', 'ดึงเนื้อหาเวอร์ชันเก่าได้ถูกต้อง');
 
+  // Case F: AI ลืมใส่แท็ก <story_canvas> แต่ผู้ใช้สั่ง "แต่งต่อจากนี้" (Smart Story Extractor)
+  const sampleAiResponseF = `ด้วยกระจกเงาใสสะอาดสะท้อนภาพเหตุการณ์ในอดีต เร็นมองดูฝ่ามือตัวเองที่ยังคงสั่นเทา\n\n"ที่นี่คือมิติกระจก..." เสียงใสของหญิงสาวดังขึ้น\n\nภาพในกระจกเริ่มสั่นไหวก่อนจะฉายความทรงจำเมื่อหลายปีก่อน`;
+  const splitF = StoryChatCore.splitChatAndCanvasContent(sampleAiResponseF, 'แต่งต่อจากนี้');
+  assert(splitF.hasCanvasContent === true, 'Smart Extractor: ตรวจจับเนื้อเรื่องได้สำเร็จแม้ AI ลืมใส่แท็ก');
+  assert(splitF.canvasText.includes('ด้วยกระจกเงาใสสะอาด'), 'ดึงเนื้อเรื่องส่งเข้า Canvas สำเร็จ');
+  assert(splitF.chatText.includes('นำเนื้อเรื่องส่งลงหน้ากระดาษ'), 'ข้อความแชทแจ้งสถานะการส่งลงกระดาษเรียบร้อย');
+
   // --- Suite 12: Regenerate & Edit Message Functions ---
   console.log('\n[Suite 12: Regenerate & Edit Message Verification]');
   

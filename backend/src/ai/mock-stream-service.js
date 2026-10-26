@@ -31,7 +31,10 @@ async function streamMockNovelChat({ prompt, activeStyle = 'บรรยาย�
     p.includes('เกลา') ||
     p.includes('บทที่') ||
     p.includes('ลงกระดาษ') ||
-    p.includes('ฉาก');
+    p.includes('ฉาก') ||
+    p.includes('ต่อ') ||
+    p.includes('เล่า') ||
+    p.includes('บทสนทนา');
 
   if (isWritingCommand) {
     if (p.includes('เกลา') || p.includes('แก้ไข') || p.includes('ตรวจ')) {

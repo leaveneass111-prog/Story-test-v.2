@@ -260,7 +260,7 @@ ${recentNovelText || "(หน้ากระดาษยังว่างเป
 
 [กฎเหล็กในการทำงาน 5 ข้ออย่างเคร่งครัด]
 1. หากผู้ใช้ชวนคุย ปรึกษาพล็อต หรือวางโครงเรื่อง ให้ตอบกลับตามปกติเพื่อแสดงในช่องแชท
-2. หากผู้ใช้สั่งให้ "เขียนเนื้อเรื่อง", "แต่งบทที่...", หรือ "เขียนลงกระดาษ" ให้คุณพูดคุยตอบรับสั้นๆ แล้วนำเนื้อหานิยายทั้งหมดใส่ไว้ในแท็ก <story_canvas>...</story_canvas> เสมอ ห้ามนำเนื้อหานิยายมาปนในข้อความแชทปกติ
+2. หากผู้ใช้สั่งให้ "เขียนเนื้อเรื่อง", "แต่งต่อ", "แต่งต่อจากนี้", "เขียนต่อ", "แต่งฉาก...", "แต่งบทที่...", "เขียนลงกระดาษ", "ขอฉากต่อไป", "เพิ่มบทสนทนา", หรือ "เล่าต่อ" ให้คุณพูดคุยตอบรับสั้นๆ แล้วนำเนื้อหานิยายทั้งหมดใส่ไว้ในแท็ก <story_canvas>...</story_canvas> เสมอ ห้ามนำเนื้อหานิยายมาปนในข้อความแชทปกติ
 3. ภายในแท็ก <story_canvas> ห้ามมีข้อความเกริ่นนำ คำทักทาย การรับคำสั่ง หรือการอธิบายแนวคิดใดๆ ก่อนเข้าเนื้อหาเด็ดขาด (เช่น ห้ามใช้คำว่า "ข้าพเจ้ายินดี...", "สำหรับนิยายสไตล์นี้...", "นี่คือโครงร่าง...")
 4. ให้เริ่มบรรทัดแรกภายในแท็ก <story_canvas> ด้วยเนื้อหาหลักหรือหัวข้อแรกทันทีโดยไม่ต้องมีบทนำ
 5. ห้ามมีข้อความสรุปปิดท้ายหรือคำถามชวนคุยต่อท้ายเนื้อหาภายในแท็ก <story_canvas>`;
@@ -289,7 +289,11 @@ ${recentNovelText || "(หน้ากระดาษยังว่างเป
         firstLine.startsWith("สวัสดี") ||
         firstLine.startsWith("รับทราบ") ||
         firstLine.startsWith("ได้เลยครับ") ||
-        firstLine.startsWith("ได้เลยค่ะ")
+        firstLine.startsWith("ได้เลยค่ะ") ||
+        firstLine.startsWith("แต่งต่อให้") ||
+        firstLine.startsWith("เขียนต่อให้") ||
+        firstLine.startsWith("จัดให้ครับ") ||
+        firstLine.startsWith("จัดให้ค่ะ")
       ) {
         lines.shift();
       } else {
@@ -324,7 +328,7 @@ ${recentNovelText || "(หน้ากระดาษยังว่างเป
   }
 
   // แยกข้อความพูดคุยในช่องแชท (chatText) กับเนื้อเรื่องที่ต้องส่งเข้ากระดาษตรงกลาง (canvasText)
-  function splitChatAndCanvasContent(rawAiText) {
+  function splitChatAndCanvasContent(rawAiText, userPrompt = "") {
     if (!rawAiText) {
       return { chatText: "", canvasText: "", hasCanvasContent: false };
     }
@@ -348,7 +352,7 @@ ${recentNovelText || "(หน้ากระดาษยังว่างเป
         .trim();
 
       if (!chatText) {
-        chatText = "เขียนเนื้อเรื่องส่งลงหน้ากระดาษตรงกลางเรียบร้อยแล้วครับ ✨";
+        chatText = "นำเนื้อเรื่องส่งลงหน้ากระดาษตรงกลางเรียบร้อยแล้วครับ ✍️✨";
       }
 
       return {
@@ -370,7 +374,7 @@ ${recentNovelText || "(หน้ากระดาษยังว่างเป
         .trim();
 
       if (!chatText) {
-        chatText = "เขียนเนื้อเรื่องส่งลงหน้ากระดาษตรงกลางเรียบร้อยแล้วครับ ✨";
+        chatText = "นำเนื้อเรื่องส่งลงหน้ากระดาษตรงกลางเรียบร้อยแล้วครับ ✍️✨";
       }
 
       return {
@@ -380,7 +384,39 @@ ${recentNovelText || "(หน้ากระดาษยังว่างเป
       };
     }
 
-    // 3. กรณีไม่มีแท็กเนื้อเรื่องเลย (เป็นการคุยปรึกษาพล็อต หรือถามตอบทั่วไป)
+    // 3. Smart Story Extractor Fallback: กรณีโมเดล AI ลืมใส่แท็ก <story_canvas>
+    // ตรวจสอบว่าคำสั่งของผู้ใช้ หรือคำตอบของ AI เป็นเนื้อหานิยายที่ควรส่งลงกระดาษตรงกลางหรือไม่
+    const p = (userPrompt || "").trim().toLowerCase();
+    const isWritingCommand =
+      p.length > 0 &&
+      /(แต่งต่อ|แต่งเนื้อเรื่อง|เขียนต่อ|เขียนฉาก|แต่งฉาก|แต่งบท|เขียนบท|ลงกระดาษ|ขอฉาก|เพิ่มบทสนทนา|เล่าต่อ|เกลาสำนวน|ฉากต่อไป|แต่งอีก|แต่งให้)/i.test(
+        p,
+      );
+
+    const hasNovelDialogue = /["'“「][^"'”」]{2,}["'”」]/.test(cleanText);
+    const hasNarrativeParagraphs =
+      cleanText.split(/\n\n+/).length >= 2 && cleanText.length > 70;
+    const isNotPureAdvice =
+      !/^(ข้อเสนอแนะ|คำแนะนำ|แนวทางการพัฒนา|ไอเดียพล็อต|จุดเปลี่ยนสำคัญ|ความเห็นเกี่ยวกับ)/i.test(
+        cleanText.trim(),
+      );
+
+    if (
+      (isWritingCommand || (hasNovelDialogue && hasNarrativeParagraphs)) &&
+      isNotPureAdvice
+    ) {
+      const canvasText = cleanCanvasNovelContent(cleanText);
+      if (canvasText.length > 20) {
+        return {
+          chatText: "นำเนื้อเรื่องส่งลงหน้ากระดาษตรงกลางเรียบร้อยแล้วครับ ✍️✨",
+          canvasText,
+          hasCanvasContent: true,
+          autoExtracted: true,
+        };
+      }
+    }
+
+    // 4. กรณีไม่มีแท็กเนื้อเรื่อง และไม่ใช่การสั่งแต่งเรื่อง (เป็นการคุยปรึกษาพล็อต หรือถามตอบทั่วไป)
     return {
       chatText: cleanText,
       canvasText: "",

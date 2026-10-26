@@ -46,6 +46,7 @@ cp .env.example .env
 ```
 
 แก้ไขไฟล์ `backend/.env` ใส่ค่าของคุณ:
+
 ```env
 PORT=3001
 SUPABASE_URL=https://your-project.supabase.co
@@ -53,7 +54,7 @@ SUPABASE_ANON_KEY=your_anon_key_here
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 
 AI_PROVIDER=gemini
-DEFAULT_MODEL=gemini-3.8-flash
+DEFAULT_MODEL=gemini-3.1-flash-lite
 GEMINI_API_KEY=your_gemini_api_key_here
 OPENROUTER_API_KEY=your_openrouter_api_key_here
 ```
@@ -66,6 +67,7 @@ OPENROUTER_API_KEY=your_openrouter_api_key_here
 ```bash
 npm start
 ```
+
 เซิร์ฟเวอร์จะเริ่มทำงานที่ `http://localhost:3001`
 
 ### 4. เปิดใช้งานหน้าเว็บ (Frontend)

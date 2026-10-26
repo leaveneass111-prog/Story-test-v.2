@@ -1257,12 +1257,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let actionsHtml = "";
     if (msg.role === "ai" && !msg.isThinking) {
-      actionsHtml = `
-        <div class="msg-actions">
-          <button class="msg-action-btn insert-btn" data-action="insert" data-index="${index}" title="แทรกเนื้อเรื่องลงหน้ากระดาษ">
+      const insertBtnHtml = msg.autoSavedToCanvas
+        ? `<span class="msg-canvas-synced-badge" style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #10b981; padding: 3px 8px; background: rgba(16,185,129,0.12); border-radius: 4px; font-weight: 500;">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 8.5l3.5 3.5 6.5-7"/></svg>
+            ส่งลงกระดาษแล้ว
+          </span>`
+        : `<button class="msg-action-btn insert-btn" data-action="insert" data-index="${index}" title="แทรกเนื้อเรื่องลงหน้ากระดาษ">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>
             แทรกลงในนิยาย
-          </button>
+          </button>`;
+
+      actionsHtml = `
+        <div class="msg-actions">
+          ${insertBtnHtml}
           <button class="msg-action-btn regen-btn" data-action="regenerate" data-index="${index}" title="สร้างคำตอบนี้ใหม่ (Regenerate)">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M14 8A6 6 0 1 1 8 2c2.4 0 4.5 1.4 5.5 3.5M14 2v4h-4"/>
@@ -1582,7 +1589,7 @@ document.addEventListener("DOMContentLoaded", () => {
             recentHistory: recentChatHistory,
             activeStyle: state.activeStyle,
             apiKey: state.apiKey || "",
-            model: state.apiKey ? "gemini-3.8-flash" : "",
+            model: state.apiKey ? "gemini-3.1-flash-lite" : "",
           }),
         });
 
@@ -1602,8 +1609,43 @@ document.addEventListener("DOMContentLoaded", () => {
 
           tempAiMsg.thinking = ""; // เคลียร์เพื่อรับสตรีมคิดสด
 
+          // นำ requestAnimationFrame มา Throttle การ Render DOM เพื่อความลื่นไหล ไม่กระตุก
+          let rafId = null;
+          let pendingThought = false;
+          let pendingStory = false;
+
+          const flushUi = () => {
+            if (pendingThought && scrollContainerEl) {
+              pendingThought = false;
+              const steps = StoryChatCore.parseThinkingSteps(
+                tempAiMsg.thinking,
+                true,
+              );
+              scrollContainerEl.innerHTML = formatReasoningContent(
+                tempAiMsg.thinking,
+                steps,
+                true,
+              );
+              scrollContainerEl.scrollTop = scrollContainerEl.scrollHeight;
+            }
+            if (pendingStory && msgBubbleEl) {
+              pendingStory = false;
+              msgBubbleEl.innerHTML = formatAiResponseText(tempAiMsg.content);
+              chatFeed.scrollTop = chatFeed.scrollHeight;
+            }
+          };
+
+          const scheduleUi = () => {
+            if (rafId) return;
+            rafId = requestAnimationFrame(() => {
+              rafId = null;
+              flushUi();
+            });
+          };
+
           while (true) {
             if (activeAbortController?.signal?.aborted) {
+              if (rafId) cancelAnimationFrame(rafId);
               throw new DOMException("Aborted", "AbortError");
             }
             const { done, value } = await reader.read();
@@ -1621,44 +1663,38 @@ document.addEventListener("DOMContentLoaded", () => {
             for (const { event, data } of events) {
               if (event === "thinking" && data.chunk) {
                 tempAiMsg.thinking = (tempAiMsg.thinking || "") + data.chunk;
-
-                // อัปเดต Auto-Scroll Container พร้อม CSS Fade Mask ทันที
-                if (scrollContainerEl) {
-                  const steps = StoryChatCore.parseThinkingSteps(
-                    tempAiMsg.thinking,
-                    true,
-                  );
-                  scrollContainerEl.innerHTML = formatReasoningContent(
-                    tempAiMsg.thinking,
-                    steps,
-                    true,
-                  );
-                  // เลื่อน scroll ลงมาล่างสุดอัตโนมัติตามเนื้อหาล่าสุด
-                  scrollContainerEl.scrollTop = scrollContainerEl.scrollHeight;
-                }
+                pendingThought = true;
+                scheduleUi();
               } else if (event === "story" && data.chunk) {
                 if (!hasStoryStarted) {
                   hasStoryStarted = true;
                   tempAiMsg.content = ""; // ล้างข้อความ placeholder
                 }
                 tempAiMsg.content += data.chunk;
-
-                // พ่นข้อความเนื้อเรื่องลงกล่องแชทหลัก
-                if (msgBubbleEl) {
-                  msgBubbleEl.innerHTML = formatAiResponseText(
-                    tempAiMsg.content,
-                  );
-                  chatFeed.scrollTop = chatFeed.scrollHeight;
-                }
+                pendingStory = true;
+                scheduleUi();
               } else if (event === "done") {
+                if (rafId) {
+                  cancelAnimationFrame(rafId);
+                  rafId = null;
+                }
                 if (data.thinking_logs) tempAiMsg.thinking = data.thinking_logs;
                 if (data.story_output) tempAiMsg.content = data.story_output;
+                pendingThought = true;
+                pendingStory = true;
+                flushUi();
                 streamedSuccessfully = true;
               } else if (event === "error") {
+                if (rafId) cancelAnimationFrame(rafId);
                 throw new Error(data.message || "เกิดข้อผิดพลาดในการสตรีม");
               }
             }
           }
+          if (rafId) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+          }
+          flushUi();
         } else {
           throw new Error(`Backend Error ${streamResponse.status}`);
         }
@@ -1741,9 +1777,10 @@ document.addEventListener("DOMContentLoaded", () => {
       lastAiMsg.thinkingDuration = totalElapsedSec;
       lastAiMsg.thoughtOpen = false; // collapse on settle
 
-      // แยกแท็กเนื้อเรื่อง <story_canvas> ส่งเข้าหน้ากระดาษตรงกลางอัตโนมัติ โดยเหลือเฉพาะข้อความพูดคุยไว้ในช่องแชท
+      // แยกแท็กเนื้อเรื่อง <story_canvas> หรือใช้ Smart Story Extractor ส่งเข้าหน้ากระดาษตรงกลางอัตโนมัติ
       const splitResult = StoryChatCore.splitChatAndCanvasContent(
         lastAiMsg.content,
+        text,
       );
       if (splitResult.hasCanvasContent && splitResult.canvasText) {
         insertTextIntoEditor(splitResult.canvasText, true);
@@ -1944,7 +1981,10 @@ document.addEventListener("DOMContentLoaded", () => {
       p.includes("เกลา") ||
       p.includes("บทที่") ||
       p.includes("ลงกระดาษ") ||
-      p.includes("ฉาก");
+      p.includes("ฉาก") ||
+      p.includes("ต่อ") ||
+      p.includes("เล่า") ||
+      p.includes("บทสนทนา");
 
     if (isWritingCommand) {
       if (p.includes("เกลา") || p.includes("แก้ไข") || p.includes("ตรวจ")) {
@@ -2030,59 +2070,78 @@ document.addEventListener("DOMContentLoaded", () => {
         maxOutputTokens: 4096,
         thinkingConfig: {
           includeThoughts: true,
+          thinkingBudget: 512,
         },
       },
     };
 
-    // ล็อกเฉพาะโมเดล gemini-3.8-flash และ gemini-2.5-flash ตามคำสั่งนายท่าน
-    const modelsToTry = ["gemini-3.8-flash", "gemini-2.5-flash"];
+    // ใช้โมเดลความเร็วสูงที่มีเสถียรภาพ และมีระบบ Fallback ลำดับถัดไป
+    const modelsToTry = [
+      "gemini-3.1-flash-lite",
+      "gemini-3.5-flash",
+      "gemini-flash-lite-latest",
+    ];
     let lastError = null;
 
     for (const modelName of modelsToTry) {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(state.apiKey)}`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      if (res.ok) {
-        const data = await res.json().catch(() => ({}));
-        const parts = data.candidates?.[0]?.content?.parts || [];
-        let thinkingText = "";
-        let answerText = "";
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
 
-        for (const part of parts) {
-          if (!part.text) continue;
-          if (part.thought) {
-            thinkingText += (thinkingText ? "\n\n" : "") + part.text;
-          } else {
-            answerText += part.text;
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          const parts = data.candidates?.[0]?.content?.parts || [];
+          let thinkingText = "";
+          let answerText = "";
+
+          for (const part of parts) {
+            if (!part.text) continue;
+            if (part.thought) {
+              thinkingText += (thinkingText ? "\n\n" : "") + part.text;
+            } else {
+              answerText += part.text;
+            }
           }
-        }
 
-        // หากไม่มี part แยก แต่มี text
-        if (!answerText && parts.length > 0) {
-          answerText = parts
-            .map((p) => p.text)
-            .filter(Boolean)
-            .join("\n");
-        }
+          // หากไม่มี part แยก แต่มี text
+          if (!answerText && parts.length > 0) {
+            answerText = parts
+              .map((p) => p.text)
+              .filter(Boolean)
+              .join("\n");
+          }
 
-        if (answerText) {
-          return {
-            content: answerText,
-            thinking: thinkingText,
-          };
-        }
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        const errMsg = errData.error?.message || `HTTP ${res.status}`;
-        lastError = new Error(`(${modelName}) ${errMsg}`);
+          if (answerText) {
+            return {
+              content: answerText,
+              thinking: thinkingText,
+            };
+          }
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          const errMsg = errData.error?.message || `HTTP ${res.status}`;
+          lastError = new Error(`(${modelName}) ${errMsg}`);
 
-        // ถ้า API Key ไม่ถูกต้อง หรือติดโควตา ให้หยุดแจ้งเตือนทันที
-        if (res.status === 400 || res.status === 403 || res.status === 429) {
-          break;
+          // ถ้า API Key ไม่ถูกต้อง (401/403) ให้หยุดแจ้งเตือนทันที
+          if (res.status === 401 || res.status === 403) {
+            break;
+          }
+          console.warn(`[Client Gemini Notice] โมเดล ${modelName} ตอบกลับ HTTP ${res.status} กำลังลองโมเดลถัดไป...`);
+        }
+      } catch (fetchErr) {
+        clearTimeout(timeoutId);
+        lastError = fetchErr;
+        if (fetchErr.name === "AbortError") {
+          console.warn(`[Client Timeout] โมเดล ${modelName} ไม่ตอบสนองใน 10 วินาที กำลังลองโมเดลถัดไป...`);
         }
       }
     }

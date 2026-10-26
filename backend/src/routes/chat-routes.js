@@ -37,22 +37,24 @@ router.post('/stream', async (req, res) => {
     return res.status(400).json({ error: 'กรุณาส่ง prompt คำสั่งของนักเขียน' });
   }
 
-  // บันทึกข้อความของผู้ใช้ (User Message) ลงฐานข้อมูล Supabase ทันที
-  await saveChatMessage({
+  // ตั้งค่า Header สำหรับ Server-Sent Events (SSE) และส่ง Header ทันที ไม่รอ Supabase บล็อก
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // ป้องกัน NGINX proxy buffer
+  res.flushHeaders?.();
+
+  // บันทึกข้อความของผู้ใช้ (User Message) ลงฐานข้อมูล Supabase แบบ Asynchronous ขนานไปกับการเริ่มสตรีม
+  const userSavePromise = saveChatMessage({
     story_id,
     role: 'user',
     user_message: prompt,
     thinking_logs: '',
     story_output: '',
     model_name: model || config.ai.defaultModel,
+  }).catch((err) => {
+    console.warn('[Supabase Notice] บันทึก User message เบื้องหลังไม่สำเร็จ:', err.message);
   });
-
-  // ตั้งค่า Header สำหรับ Server-Sent Events (SSE)
-  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-cache, no-transform');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no'); // ป้องกัน NGINX proxy buffer
-  res.flushHeaders?.();
 
   // สร้างฟังก์ชันส่ง SSE Event
   const sendSse = (event, data) => {
