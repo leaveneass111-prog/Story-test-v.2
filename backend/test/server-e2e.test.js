@@ -92,6 +92,9 @@ async function runE2eTests() {
               receivedDoneEvent = true;
               assert.ok(data.thinking_logs !== undefined, 'event: done ต้องมี thinking_logs');
               assert.ok(data.story_output !== undefined, 'event: done ต้องมี story_output');
+              assert.ok(data.chat_text !== undefined, 'event: done ต้องมี chat_text');
+              assert.ok(data.canvas_text !== undefined, 'event: done ต้องมี canvas_text');
+              assert.strictEqual(typeof data.has_canvas, 'boolean', 'event: done ต้องมี has_canvas เป็น boolean');
             }
           } catch (e) {}
         }

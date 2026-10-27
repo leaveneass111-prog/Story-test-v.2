@@ -18,7 +18,7 @@ const config = {
   },
   ai: {
     provider: (process.env.AI_PROVIDER || 'gemini').toLowerCase(),
-    defaultModel: process.env.DEFAULT_MODEL || 'gemini-3.1-flash-lite',
+    defaultModel: process.env.DEFAULT_MODEL || 'gemini-3.8-flash',
     geminiApiKey: process.env.GEMINI_API_KEY || '',
     openRouterApiKey: process.env.OPENROUTER_API_KEY || '',
   },

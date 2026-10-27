@@ -13,9 +13,6 @@
       rel="stylesheet"
     />
 
-    <!-- ต้นฉบับ Blueprint & Normalize CSS จาก app.css -->
-    <link rel="stylesheet" href="app.css" />
-
     <!-- ดีไซน์ธีม Dark Mode และเลย์เอาต์พรีเมียม -->
     <link rel="stylesheet" href="style.css" />
   </head>
@@ -29,6 +26,7 @@
             id="btn-toggle-left"
             class="nav-btn-icon"
             title="เปิด/ปิด แผงบันทึกข้อมูล"
+            aria-label="เปิดหรือปิด แผงบันทึกข้อมูล"
           >
             <svg
               width="18"
@@ -49,6 +47,7 @@
               id="btn-stories-list"
               class="nav-btn-icon"
               title="ดูรายการนิยายทั้งหมด / สลับเรื่อง (จัดการนิยาย)"
+              aria-label="ดูรายการนิยายทั้งหมดและสลับเรื่อง"
             >
               <svg
                 width="16"
@@ -67,6 +66,7 @@
               class="doc-title-input"
               value="การเดินทางข้ามมิติของเร็น"
               placeholder="ชื่อนิยายหรือตอน..."
+              aria-label="ชื่อนิยายหรือตอน"
             />
             <div class="nav-status-badge">
               <span class="nav-status-dot"></span>
@@ -79,6 +79,7 @@
             id="btn-new-story"
             class="btn-new-story"
             title="สร้างนิยายเรื่องใหม่"
+            aria-label="สร้างนิยายเรื่องใหม่"
           >
             <svg
               width="14"
@@ -96,11 +97,11 @@
 
         <div class="nav-right">
           <!-- Word & Character Counts -->
-          <span id="char-count-badge" class="stat-pill">0 ตัวอักษร</span>
-          <span id="word-count-badge" class="stat-pill">0 คำ</span>
+          <span id="char-count-badge" class="stat-pill" aria-label="จำนวนตัวอักษร">0 ตัวอักษร</span>
+          <span id="word-count-badge" class="stat-pill" aria-label="จำนวนคำ">0 คำ</span>
 
           <!-- Export Document -->
-          <button id="btn-export" class="btn-share" title="ส่งออกไฟล์">
+          <button id="btn-export" class="btn-share" title="ส่งออกไฟล์" aria-label="ส่งออกเอกสารนิยาย">
             <svg
               width="14"
               height="14"
@@ -119,6 +120,7 @@
             id="btn-settings"
             class="nav-btn-icon"
             title="ตั้งค่าระบบ / API Key"
+            aria-label="ตั้งค่าระบบและ API Key"
           >
             <svg
               width="16"
@@ -136,7 +138,7 @@
           </button>
 
           <!-- Upgrade Button -->
-          <button id="btn-upgrade" class="btn-upgrade" title="อัปเกรดเป็น Pro Plan">
+          <button id="btn-upgrade" class="btn-upgrade" title="อัปเกรดเป็น Pro Plan" aria-label="ดูข้อมูลสิทธิประโยชน์ Pro Plan">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
               <path
                 d="M8 1l2 4 4.5.7-3.3 3.2.8 4.6L8 11.3 3.9 13.5l.8-4.6L1.5 5.7 6 5l2-4z"
@@ -146,13 +148,14 @@
           </button>
 
           <!-- Share Button -->
-          <button id="btn-share" class="btn-share">แบ่งปัน</button>
+          <button id="btn-share" class="btn-share" aria-label="เปิดหน้าต่างแบ่งปันผลงานนิยาย">แบ่งปัน</button>
 
           <!-- Toggle Right Sidebar (AI Chat) -->
           <button
             id="btn-toggle-right"
             class="nav-btn-icon"
             title="เปิด/ปิด ผู้ช่วย AI แชท"
+            aria-label="เปิดหรือปิด ผู้ช่วย AI แชท"
           >
             <svg
               width="18"
@@ -194,6 +197,7 @@
               class="nav-btn-icon"
               style="width: 24px; height: 24px"
               title="ซ่อนแถบข้าง"
+              aria-label="ซ่อนแถบข้าง"
             >
               <svg
                 width="14"
@@ -231,6 +235,7 @@
                   id="btn-add-overview"
                   class="note-add-btn"
                   title="เพิ่มหัวข้อภาพรวมใหม่"
+                  aria-label="เพิ่มหัวข้อภาพรวมใหม่"
                 >
                   <svg
                     width="14"
@@ -271,6 +276,7 @@
                   id="btn-add-character"
                   class="note-add-btn"
                   title="เพิ่มตัวละครใหม่"
+                  aria-label="เพิ่มตัวละครใหม่"
                 >
                   <svg
                     width="14"
@@ -311,6 +317,7 @@
                   id="btn-add-location"
                   class="note-add-btn"
                   title="เพิ่มสถานที่ใหม่"
+                  aria-label="เพิ่มสถานที่ใหม่"
                 >
                   <svg
                     width="14"
@@ -351,6 +358,7 @@
                   id="btn-add-timeline"
                   class="note-add-btn"
                   title="เพิ่มช่วงเวลา/เหตุการณ์"
+                  aria-label="เพิ่มช่วงเวลาหรือเหตุการณ์"
                 >
                   <svg
                     width="14"
@@ -381,6 +389,7 @@
                   id="format-block-select"
                   class="tb-select"
                   title="รูปแบบข้อความ"
+                  aria-label="รูปแบบข้อความ"
                 >
                   <option value="p">ย่อหน้าปกติ</option>
                   <option value="h1">หัวข้อ 1 (H1)</option>
@@ -398,6 +407,7 @@
                   class="tb-btn"
                   data-command="bold"
                   title="ตัวหนา (Ctrl+B)"
+                  aria-label="ตัวหนา"
                 >
                   <strong>B</strong>
                 </button>
@@ -405,6 +415,7 @@
                   class="tb-btn"
                   data-command="italic"
                   title="ตัวเอียง (Ctrl+I)"
+                  aria-label="ตัวเอียง"
                 >
                   <em>I</em>
                 </button>
@@ -412,6 +423,7 @@
                   class="tb-btn"
                   data-command="underline"
                   title="ขีดเส้นใต้ (Ctrl+U)"
+                  aria-label="ขีดเส้นใต้"
                 >
                   <u>U</u>
                 </button>
@@ -419,6 +431,7 @@
                   class="tb-btn"
                   data-command="strikeThrough"
                   title="ขีดฆ่า"
+                  aria-label="ขีดฆ่า"
                 >
                   <s>S</s>
                 </button>
@@ -428,7 +441,7 @@
 
               <!-- Insert elements -->
               <div class="toolbar-group">
-                <button id="btn-insert-link" class="tb-btn" title="แทรกลิงก์">
+                <button id="btn-insert-link" class="tb-btn" title="แทรกลิงก์" aria-label="แทรกลิงก์">
                   <svg
                     width="15"
                     height="15"
@@ -442,7 +455,7 @@
                     />
                   </svg>
                 </button>
-                <button id="btn-insert-image" class="tb-btn" title="แทรกรูปภาพ">
+                <button id="btn-insert-image" class="tb-btn" title="แทรกรูปภาพ" aria-label="แทรกรูปภาพ">
                   <svg
                     width="15"
                     height="15"
@@ -466,6 +479,7 @@
                   class="tb-btn"
                   data-command="insertUnorderedList"
                   title="รายการแบบจุด"
+                  aria-label="รายการแบบจุด"
                 >
                   <svg
                     width="15"
@@ -482,6 +496,7 @@
                   class="tb-btn"
                   data-command="insertOrderedList"
                   title="รายการแบบตัวเลข"
+                  aria-label="รายการแบบตัวเลข"
                 >
                   <svg
                     width="15"
@@ -500,6 +515,7 @@
                   class="tb-btn"
                   data-command="outdent"
                   title="ลดการเยื้อง"
+                  aria-label="ลดการเยื้อง"
                 >
                   <svg
                     width="15"
@@ -516,6 +532,7 @@
                   class="tb-btn"
                   data-command="indent"
                   title="เพิ่มการเยื้อง"
+                  aria-label="เพิ่มการเยื้อง"
                 >
                   <svg
                     width="15"
@@ -538,6 +555,7 @@
                   class="tb-btn"
                   data-command="undo"
                   title="เลิกทำ (Ctrl+Z)"
+                  aria-label="เลิกทำ"
                 >
                   <svg
                     width="14"
@@ -554,6 +572,7 @@
                   class="tb-btn"
                   data-command="redo"
                   title="ทำซ้ำ (Ctrl+Y)"
+                  aria-label="ทำซ้ำ"
                 >
                   <svg
                     width="14"
@@ -746,6 +765,7 @@
                 class="nav-btn-icon"
                 style="width: 28px; height: 28px"
                 title="เริ่มแชทใหม่"
+                aria-label="เริ่มแชทใหม่"
               >
                 <svg
                   width="14"
@@ -763,6 +783,7 @@
                 class="nav-btn-icon"
                 style="width: 28px; height: 28px"
                 title="ซ่อนแผงแชท"
+                aria-label="ซ่อนแผงแชท"
               >
                 <svg
                   width="14"
@@ -878,6 +899,7 @@
                     id="style-select"
                     class="style-select-pill"
                     title="เลือกสไตล์ภาษาของ AI"
+                    aria-label="เลือกสไตล์ภาษาของ AI"
                   >
                     <option value="บรรยายเน้นอารมณ์">
                       สไตล์: บรรยายเน้นอารมณ์
@@ -905,6 +927,7 @@
                   id="btn-send-chat"
                   class="btn-send-message"
                   title="ส่งข้อความ (Enter)"
+                  aria-label="ส่งข้อความคำสั่ง"
                 >
                   <svg
                     width="14"
@@ -923,6 +946,7 @@
                   id="btn-abort-chat"
                   class="btn-abort-message"
                   title="หยุดสร้างข้อความ (Esc หรือคลิก)"
+                  aria-label="หยุดสร้างข้อความ"
                   style="display: none;"
                 >
                   <svg
@@ -942,13 +966,14 @@
     </div>
 
     <!-- ================= Modal: เพิ่มตัวละคร ================= -->
-    <div id="modal-add-character" class="modal-backdrop">
+    <div id="modal-add-character" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-add-char-title">
       <div class="modal-box">
         <div class="modal-header">
-          <h3 class="modal-title">เพิ่มตัวละครใหม่</h3>
+          <h3 id="modal-add-char-title" class="modal-title">เพิ่มตัวละครใหม่</h3>
           <button
             class="nav-btn-icon"
             onclick="closeModal('modal-add-character')"
+            aria-label="ปิดหน้าต่างเพิ่มตัวละคร"
           >
             ✕
           </button>
@@ -999,13 +1024,14 @@
     </div>
 
     <!-- ================= Modal: เพิ่มสถานที่ ================= -->
-    <div id="modal-add-location" class="modal-backdrop">
+    <div id="modal-add-location" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-add-loc-title">
       <div class="modal-box">
         <div class="modal-header">
-          <h3 class="modal-title">เพิ่มสถานที่สำคัญ</h3>
+          <h3 id="modal-add-loc-title" class="modal-title">เพิ่มสถานที่สำคัญ</h3>
           <button
             class="nav-btn-icon"
             onclick="closeModal('modal-add-location')"
+            aria-label="ปิดหน้าต่างเพิ่มสถานที่"
           >
             ✕
           </button>
@@ -1056,13 +1082,14 @@
     </div>
 
     <!-- ================= Modal: เพิ่มช่วงเวลา & เหตุการณ์ ================= -->
-    <div id="modal-add-timeline" class="modal-backdrop">
+    <div id="modal-add-timeline" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-add-timeline-title">
       <div class="modal-box">
         <div class="modal-header">
-          <h3 class="modal-title">เพิ่มเหตุการณ์สำคัญ</h3>
+          <h3 id="modal-add-timeline-title" class="modal-title">เพิ่มเหตุการณ์สำคัญ</h3>
           <button
             class="nav-btn-icon"
             onclick="closeModal('modal-add-timeline')"
+            aria-label="ปิดหน้าต่างเพิ่มเหตุการณ์"
           >
             ✕
           </button>
@@ -1113,11 +1140,11 @@
     </div>
 
     <!-- ================= Modal: ตั้งค่า / API Key ================= -->
-    <div id="modal-settings" class="modal-backdrop">
+    <div id="modal-settings" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-settings-title">
       <div class="modal-box">
         <div class="modal-header">
-          <h3 class="modal-title">ตั้งค่าผู้ช่วย AI</h3>
-          <button class="nav-btn-icon" onclick="closeModal('modal-settings')">
+          <h3 id="modal-settings-title" class="modal-title">ตั้งค่าผู้ช่วย AI</h3>
+          <button class="nav-btn-icon" onclick="closeModal('modal-settings')" aria-label="ปิดหน้าต่างตั้งค่า">
             ✕
           </button>
         </div>
@@ -1144,6 +1171,7 @@
                 id="input-gemini-key"
                 class="form-input"
                 placeholder="AIzaSy..."
+                aria-label="Google Gemini API Key"
               />
               <small
                 style="
@@ -1152,8 +1180,8 @@
                   margin-top: 4px;
                 "
               >
-                * คีย์จะถูกจัดเก็บไว้เฉพาะใน Browser (Local Storage)
-                ของคุณอย่างปลอดภัย ไม่มีการส่งต่อไปยังเซิร์ฟเวอร์ภายนอก
+                * คีย์จะถูกจัดเก็บไว้ใน Browser (Local Storage) ของคุณ
+                และส่งตรงไปยัง Google Gemini API / Backend Proxy ผ่านช่องทางเข้ารหัส (HTTPS) เพื่อประมวลผลคำสั่งเท่านั้น โดยไม่มีการบันทึกคีย์ลงฐานข้อมูลส่วนกลาง
               </small>
             </div>
           </div>
@@ -1172,11 +1200,11 @@
     </div>
 
     <!-- ================= Modal: ส่งออกเอกสาร ================= -->
-    <div id="modal-export" class="modal-backdrop">
+    <div id="modal-export" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-export-title">
       <div class="modal-box">
         <div class="modal-header">
-          <h3 class="modal-title">ส่งออกเอกสารนิยาย</h3>
-          <button class="nav-btn-icon" onclick="closeModal('modal-export')">
+          <h3 id="modal-export-title" class="modal-title">ส่งออกเอกสารนิยาย</h3>
+          <button class="nav-btn-icon" onclick="closeModal('modal-export')" aria-label="ปิดหน้าต่างส่งออกเอกสาร">
             ✕
           </button>
         </div>
@@ -1209,13 +1237,14 @@
     </div>
 
     <!-- ================= Modal: รายการและจัดการนิยายทั้งหมด ================= -->
-    <div id="modal-stories-list" class="modal-backdrop">
+    <div id="modal-stories-list" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-stories-title">
       <div class="modal-box" style="max-width: 600px">
         <div class="modal-header">
-          <h3 class="modal-title">📚 นิยายของฉัน (จัดการและสลับเรื่อง)</h3>
+          <h3 id="modal-stories-title" class="modal-title">📚 นิยายของฉัน (จัดการและสลับเรื่อง)</h3>
           <button
             class="nav-btn-icon"
             onclick="closeModal('modal-stories-list')"
+            aria-label="ปิดหน้าต่างรายการนิยาย"
           >
             ✕
           </button>
@@ -1257,13 +1286,14 @@
     </div>
 
     <!-- ================= Modal: เพิ่มภาพรวมโครงเรื่อง ================= -->
-    <div id="modal-add-overview" class="modal-backdrop">
+    <div id="modal-add-overview" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-add-overview-title">
       <div class="modal-box">
         <div class="modal-header">
-          <h3 class="modal-title">เพิ่มหัวข้อภาพรวมโครงเรื่อง</h3>
+          <h3 id="modal-add-overview-title" class="modal-title">เพิ่มหัวข้อภาพรวมโครงเรื่อง</h3>
           <button
             class="nav-btn-icon"
             onclick="closeModal('modal-add-overview')"
+            aria-label="ปิดหน้าต่างเพิ่มภาพรวม"
           >
             ✕
           </button>
@@ -1306,7 +1336,7 @@
     </div>
 
     <!-- ================= Modal: กล่องยืนยันการทำงาน (Custom In-App Confirm Dialog) ================= -->
-    <div id="modal-confirm-dialog" class="modal-backdrop">
+    <div id="modal-confirm-dialog" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
       <div class="modal-box" style="max-width: 420px">
         <div class="modal-header">
           <h3 id="confirm-title" class="modal-title" style="color: #ef4444">
@@ -1315,6 +1345,7 @@
           <button
             class="nav-btn-icon"
             onclick="closeModal('modal-confirm-dialog')"
+            aria-label="ปิดหน้าต่างยืนยัน"
           >
             ✕
           </button>
@@ -1350,12 +1381,125 @@
         </div>
       </div>
     </div>
+    <!-- ================= Modal: แบ่งปันผลงานนิยาย (Share Modal) ================= -->
+    <div id="modal-share" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="share-modal-title">
+      <div class="modal-box" style="max-width: 520px">
+        <div class="modal-header">
+          <h3 id="share-modal-title" class="modal-title">📤 แบ่งปันผลงานนิยาย</h3>
+          <button
+            class="nav-btn-icon"
+            onclick="closeModal('modal-share')"
+            aria-label="ปิดหน้าต่างแบ่งปัน"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
+            เลือกวิธีแบ่งปันเนื้อหานิยายและโครงเรื่องของคุณไปยังแพลตฟอร์มต่างๆ:
+          </p>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button id="btn-share-copy-canvas" class="quick-action-btn" style="text-align: left; padding: 12px;">
+              📋 <strong>คัดลอกเนื้อหานิยายทั้งหมดลงคลิปบอร์ด</strong>
+              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+                คัดลอกเฉพาะตัวบทความ สำหรับนำไปวางใน ReadAWrite, Dek-D หรือ Fictionlog
+              </div>
+            </button>
+            <button id="btn-share-copy-synopsis" class="quick-action-btn" style="text-align: left; padding: 12px;">
+              📝 <strong>คัดลอกโครงเรื่องและสรุปตัวละคร (Lorebook Summary)</strong>
+              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+                คัดลอกข้อมูลสรุปเพื่อแลกเปลี่ยนกับนักเขียนคนอื่นหรือส่งบรรณาธิการ
+              </div>
+            </button>
+            <button id="btn-share-copy-link" class="quick-action-btn" style="text-align: left; padding: 12px;">
+              🔗 <strong>คัดลอกลิงก์โครงการสตูดิโอ</strong>
+              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+                บันทึกตำแหน่ง URL สำหรับกลับมาเปิดหน้าสตูดิโอได้อย่างรวดเร็ว
+              </div>
+            </button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn-secondary"
+            onclick="closeModal('modal-share')"
+          >
+            ปิด
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= Modal: ข้อมูล Pro Plan (Upgrade Modal) ================= -->
+    <div id="modal-upgrade" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="upgrade-modal-title">
+      <div class="modal-box" style="max-width: 580px">
+        <div class="modal-header">
+          <h3 id="upgrade-modal-title" class="modal-title">🌟 Novel AI Studio Pro Plan</h3>
+          <button
+            class="nav-btn-icon"
+            onclick="closeModal('modal-upgrade')"
+            aria-label="ปิดหน้าต่างอัปเกรด"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.6;">
+            ยกระดับสตูดิโอแต่งนิยายของคุณสู่มาตรฐานมืออาชีพ ปลดล็อกศักยภาพสูงสุดของโมเดล AI และคลาวด์:
+          </p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+            <div style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px;">
+              <h4 style="font-size: 14px; color: var(--text-secondary); margin-bottom: 8px;">Standard Plan (ปัจจุบัน)</h4>
+              <ul style="font-size: 12.5px; color: var(--text-muted); padding-left: 16px; line-height: 1.8;">
+                <li>โมเดล Gemini 3.1 Flash-Lite</li>
+                <li>จัดเก็บข้อมูลใน Local Storage</li>
+                <li>Lorebook ตัวละครและสถานที่พื้นฐาน</li>
+                <li>ส่งออกไฟล์ .txt, .md, .html</li>
+              </ul>
+            </div>
+            <div style="background: rgba(71, 140, 209, 0.08); border: 1px solid var(--accent-blue); border-radius: var(--radius-md); padding: 14px;">
+              <h4 style="font-size: 14px; color: var(--accent-blue); margin-bottom: 8px;">✨ Pro Plan (แนะนำ)</h4>
+              <ul style="font-size: 12.5px; color: var(--text-primary); padding-left: 16px; line-height: 1.8;">
+                <li>⚡ Gemini 3.8 Flash (High Speed & Deep Logic)</li>
+                <li>🧠 Thinking Logs & Real-time Reasoning Stream</li>
+                <li>☁️ ซิงก์คลาวด์ Supabase ไม่จำกัดขนาดเรื่อง</li>
+                <li>📖 Smart Story Extractor ป้องกันข้อความหลุด</li>
+              </ul>
+            </div>
+          </div>
+          <div style="background: rgba(139, 92, 246, 0.1); border: 1px dashed var(--accent-purple); border-radius: var(--radius-md); padding: 12px; font-size: 12.5px; color: var(--text-primary);">
+            🎉 <strong>สิทธิพิเศษช่วงพรีวิว:</strong> ขณะนี้ระบบเปิดให้ทุกท่านทดลองใช้งานฟีเจอร์ระดับ Pro ได้ฟรีเต็มรูปแบบ โดยไม่ต้องผูกบัตรเครดิต!
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn-secondary"
+            onclick="closeModal('modal-upgrade')"
+          >
+            ปิด
+          </button>
+          <button
+            id="btn-activate-pro-preview"
+            type="button"
+            class="btn-primary"
+            style="background: linear-gradient(135deg, #478cd1 0%, #8b5cf6 100%); border: none;"
+          >
+            เปิดใช้งาน Pro Preview ฟรีทันที ✨
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Toast Notification Container -->
     <div id="toast-container" class="toast-container"></div>
 
     <!-- Logic Script Modules -->
     <script src="story-chat-core.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/editor.js"></script>
+    <script src="js/notes.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

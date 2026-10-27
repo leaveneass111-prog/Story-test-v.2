@@ -117,6 +117,27 @@ function runTests() {
   streamState = StoryChatCore.appendStreamChunk(streamState, 'done', { thinking_logs: 'ข้อ 1', story_output: 'เปิดฉากสมบูรณ์' });
   assert(streamState.isDone === true, 'สถานะเป็น done สำเร็จ');
 
+  // ทดสอบ parseSseBlocks กับก้อนข้อมูลที่ถูกตัดครึ่งกลางอีเวนต์
+  const partialSse = 'event: thinking\ndata: {"chunk":"สมองกำลังคิด..."}\n\nevent: story\ndata: {"chunk":"กำลัง';
+  const blockResult1 = StoryChatCore.parseSseBlocks(partialSse);
+  assert(blockResult1.events.length === 1, 'แยกได้เฉพาะอีเวนต์แรกที่สมบูรณ์ (1 อีเวนต์)');
+  assert(blockResult1.events[0].event === 'thinking', 'อีเวนต์สมบูรณ์คือ thinking');
+  assert(blockResult1.remainingBuffer === 'event: story\ndata: {"chunk":"กำลัง', 'เก็บเศษที่ยังไม่สมบูรณ์ไว้ใน remainingBuffer');
+
+  // ก้อนข้อมูลถัดไปมาต่อจนครบ \n\n
+  const nextChunk = blockResult1.remainingBuffer + 'เขียนฉากต่อ..."}\n\n';
+  const blockResult2 = StoryChatCore.parseSseBlocks(nextChunk);
+  assert(blockResult2.events.length === 1, 'ประมวลผลอีเวนต์ที่สมบูรณ์แล้วในรอบถัดไป');
+  assert(blockResult2.events[0].event === 'story', 'อีเวนต์คือ story');
+  assert(blockResult2.events[0].data.chunk === 'กำลังเขียนฉากต่อ...', 'เนื้อหา chunk สมบูรณ์ไร้การตกหล่น');
+  assert(blockResult2.remainingBuffer === '', 'remainingBuffer ว่างเปล่า');
+
+  // กรณี Buffer ไม่มี \n\n เลย
+  const noNl = 'event: thinking\ndata: {"ch';
+  const blockResult3 = StoryChatCore.parseSseBlocks(noNl);
+  assert(blockResult3.events.length === 0, 'หากยังไม่ถึง \\n\\n จะไม่ parse ใดๆ');
+  assert(blockResult3.remainingBuffer === noNl, 'คงค่า buffer เดิมทั้งหมดไว้');
+
   // --- Suite 9: Thinking Steps Extraction ---
   console.log('\n[Suite 9: Thinking Steps Extraction]');
   const sampleThinking = '🧠 1. ตรวจสอบ Lorebook\n🧠 2. วางโครงเรื่องฉาก\n💡 3. ขับเน้นอารมณ์';
@@ -193,6 +214,23 @@ function runTests() {
   assert(splitF.canvasText.includes('ด้วยกระจกเงาใสสะอาด'), 'ดึงเนื้อเรื่องส่งเข้า Canvas สำเร็จ');
   assert(splitF.chatText.includes('นำเนื้อเรื่องส่งลงหน้ากระดาษ'), 'ข้อความแชทแจ้งสถานะการส่งลงกระดาษเรียบร้อย');
 
+  // Case G: คุ้มครองบทสนทนานิยายแท้จริงที่ขึ้นต้นด้วยคำพูด เช่น "สวัสดี", "ยินดี", "ข้าพเจ้า" หรือลงท้ายด้วย "หวังว่า"
+  const sampleNovelWithDialogue = `<story_canvas>
+"สวัสดีครับท่านแม่ทัพ" ชายหนุ่มเอ่ยทักทายพลางประสานมือคำนับ
+"ยินดีที่ได้พบอีกครั้ง" แม่ทัพตอบกลับด้วยรอยยิ้ม
+"ข้าหวังว่าจะได้ร่วมรบเคียงบ่าเคียงไหล่กับท่านอีก"
+</story_canvas>`;
+  const splitG = StoryChatCore.splitChatAndCanvasContent(sampleNovelWithDialogue);
+  assert(splitG.canvasText.includes('"สวัสดีครับท่านแม่ทัพ"'), 'ไม่ลบบทสนทนาที่ขึ้นต้นด้วย "สวัสดี"');
+  assert(splitG.canvasText.includes('"ยินดีที่ได้พบอีกครั้ง"'), 'ไม่ลบบทสนทนาที่ขึ้นต้นด้วย "ยินดี"');
+  assert(splitG.canvasText.includes('"ข้าหวังว่าจะได้ร่วมรบเคียงบ่าเคียงไหล่กับท่านอีก"'), 'ไม่ลบบทสนทนาท้ายเรื่องที่มีคำว่า "หวังว่า"');
+
+  // Case H: ข้อเสนอแนะหรือคำแนะนำแบบรายการ ต้องไม่ถูก Smart Extractor ดันเข้ากระดาษ
+  const sampleAdvice = `ข้อเสนอแนะในการพัฒนาโครงเรื่อง:\n1. เพิ่มมิติให้ตัวร้ายมีเป้าหมายที่เข้าใจได้\n2. ขยายความสัมพันธ์ระหว่างตัวละครเอก\n3. ปรับระดับความตึงเครียดของฉากไคลแม็กซ์`;
+  const splitH = StoryChatCore.splitChatAndCanvasContent(sampleAdvice, 'แต่งต่อ');
+  assert(splitH.hasCanvasContent === false, 'คำแนะนำและข้อเสนอแนะโครงเรื่องต้องไม่ถูกส่งเข้าหน้ากระดาษ');
+  assert(splitH.chatText === sampleAdvice, 'คำแนะนำแสดงในช่องแชทตามปกติ');
+
   // --- Suite 12: Regenerate & Edit Message Functions ---
   console.log('\n[Suite 12: Regenerate & Edit Message Verification]');
   
@@ -227,6 +265,26 @@ function runTests() {
 
   const invalidEdit = StoryChatCore.editChatMessage(testChat, 99, 'ข้อความนอกขอบเขต');
   assert(invalidEdit.length === testChat.length, 'กรณี index เกินขอบเขต อาเรย์ไม่พังและมีขนาดเท่าเดิม');
+
+  // --- Suite 13: XSS Prevention & HTML Sanitization ---
+  console.log('\n[Suite 13: XSS Prevention & HTML Sanitization]');
+  const rawXssScript = '<script>alert("xss")</script>';
+  const escapedScript = StoryChatCore.escapeHtml(rawXssScript);
+  assert(escapedScript === '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;', 'escapeHtml แปลงแท็ก script และ quotes ได้อย่างปลอดภัย');
+
+  const rawXssImg = '<img src=x onerror=alert(1)>';
+  const escapedImg = StoryChatCore.escapeHtml(rawXssImg);
+  assert(escapedImg === '&lt;img src=x onerror=alert(1)&gt;', 'escapeHtml แปลงแท็ก img onerror สำเร็จ');
+
+  const formattedXss = StoryChatCore.formatAiResponseText('คำตอบ AI: <img src=x onerror=alert(1)> และ **ตัวหนา**');
+  assert(!formattedXss.includes('<img'), 'formatAiResponseText ต้องไม่มีแท็ก <img> ดิบหลุดรอด');
+  assert(formattedXss.includes('&lt;img src=x onerror=alert(1)&gt;'), 'formatAiResponseText ต้อง escape แท็กรูปภาพที่ไม่ปลอดภัย');
+  assert(formattedXss.includes('<strong>ตัวหนา</strong>'), 'formatAiResponseText ยังแปลงมาร์กดาวน์ตัวหนาได้อย่างถูกต้อง');
+
+  const formattedCanvas = StoryChatCore.formatAiResponseText('ข้อความ <story_canvas>เนื้อหานิยาย</story_canvas> ปิดท้าย <script>x()</script>');
+  assert(formattedCanvas.includes('story-canvas-tag-badge'), 'formatAiResponseText แปลงแท็ก story_canvas เป็น badge ได้ถูกต้อง');
+  assert(!formattedCanvas.includes('<script>'), 'formatAiResponseText ต้องไม่มีแท็ก script ดิบหลุดรอด');
+  assert(formattedCanvas.includes('&lt;script&gt;x()&lt;/script&gt;'), 'formatAiResponseText ต้อง escape แท็ก script');
 
   // --- Final Summary ---
   console.log('\n========================================');

@@ -10,7 +10,9 @@
 2. **Supabase Database Integration:** จัดเก็บประวัติการคุยและการสร้างสรรค์นิยาย (`chat_history`) อย่างเป็นระบบ
 3. **Local Fallback Protection:** หากยังไม่ได้เชื่อมต่อฐานข้อมูล Supabase ระบบจะสลับไปใช้ In-Memory / Local Fallback อัตโนมัติ โดยไม่ทำให้การทำงานสะดุด
 4. **Multi-Model Support:** รองรับทั้ง Google Gemini (เช่น `gemini-3.8-flash`) และ OpenRouter
-5. **ความปลอดภัยระดับสูง (Zero Secret Exposure):** ตัวแปรและคีย์ลับ (Service Role Key, API Keys) จะถูกเก็บไว้ที่ฝั่ง Backend (`.env`) เท่านั้น ไม่ถูกเปิดเผยสู่หน้าเว็บสาธารณะ
+5. **ความปลอดภัยระดับสูง (Zero Secret Exposure & BYOK):**
+   - **Server Proxy Mode:** คีย์ลับหลักของระบบ (เช่น Supabase Service Role Key และ Server API Key) จะถูกเก็บไว้ที่ฝั่ง Backend (`.env`) เท่านั้น ไม่ถูกเปิดเผยสู่หน้าเว็บสาธารณะ
+   - **Bring Your Own Key (BYOK):** หากผู้ใช้ระบุ Gemini API Key ส่วนตัวผ่านเมนูตั้งค่า คีย์จะถูกเก็บไว้เฉพาะใน Local Storage ของเบราว์เซอร์ และส่งผ่าน Header `x-goog-api-key` ไปยัง Google Gemini API / Backend Proxy ผ่านช่องทาง HTTPS โดยไม่มีการบันทึกคีย์ส่วนตัวลงฐานข้อมูลส่วนกลาง
 
 ---
 

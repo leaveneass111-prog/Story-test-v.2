@@ -16,6 +16,7 @@ const {
   deleteChatMessage,
   clearStoryChatHistory,
 } = require('../db/supabase');
+const StoryChatCore = require('../../../story-chat-core');
 
 /**
  * POST /api/chat/stream
@@ -114,12 +115,21 @@ router.post('/stream', async (req, res) => {
       model_name: model || config.ai.defaultModel,
     });
 
+    // แยกเนื้อเรื่องออกจากแชทเป็น structured output
+    const splitResult = StoryChatCore.splitChatAndCanvasContent(
+      finalResult.story_output || '',
+      prompt || ''
+    );
+
     // ส่งสัญญาณว่าจบสตรีม พร้อมส่งผลรวมทั้งหมด
     sendSse('done', {
       id: savedAiMsg.data?.id,
       role: 'ai',
       thinking_logs: finalResult.thinking_logs,
       story_output: finalResult.story_output,
+      chat_text: splitResult.chatText,
+      canvas_text: splitResult.canvasText,
+      has_canvas: splitResult.hasCanvasContent,
       storage: savedAiMsg.storage,
       timestamp: Date.now(),
     });

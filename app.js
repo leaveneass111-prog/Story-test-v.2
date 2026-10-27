@@ -82,8 +82,46 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function saveStories() {
-    localStorage.setItem("novel_stories", JSON.stringify(state.stories));
-    localStorage.setItem("novel_active_story_id", state.activeStoryId);
+    // 1. บันทึกลง IndexedDB (ไม่ติดโควต้า 5MB)
+    if (typeof NovelStorage !== "undefined" && NovelStorage.saveAllStories) {
+      NovelStorage.saveAllStories(state.stories);
+    }
+
+    // 2. สำรองลง LocalStorage อย่างปลอดภัย
+    try {
+      localStorage.setItem("novel_stories", JSON.stringify(state.stories));
+    } catch (quotaErr) {
+      console.warn(
+        "[Storage] LocalStorage เต็ม (~5MB Quota) ข้อมูลถูกบันทึกลง IndexedDB ปลอดภัยแล้ว",
+      );
+    }
+    try {
+      localStorage.setItem("novel_active_story_id", state.activeStoryId);
+    } catch {}
+
+    // 3. ซิงก์ประวัติแชทขึ้น Supabase Cloud ผ่าน Backend API
+    const active = getActiveStory();
+    if (active && active.chatMessages && active.chatMessages.length > 0) {
+      const lastMsg = active.chatMessages[active.chatMessages.length - 1];
+      if (
+        lastMsg &&
+        !lastMsg._cloudSynced &&
+        typeof NovelStorage !== "undefined"
+      ) {
+        NovelStorage.syncChatToCloud({
+          story_id: active.id,
+          role: lastMsg.role,
+          user_message: lastMsg.user_message || lastMsg.content,
+          thinking_logs: lastMsg.thinking || "",
+          story_output: lastMsg.content || "",
+          model_name: "gemini-3.8-flash",
+        })
+          .then((res) => {
+            if (res?.success) lastMsg._cloudSynced = true;
+          })
+          .catch(() => {});
+      }
+    }
   }
 
   // ================= DOM Elements =================
@@ -190,6 +228,19 @@ document.addEventListener("DOMContentLoaded", () => {
     loadStoryIntoEditor(currentStory);
     setupEventListeners();
     checkBackendStatus();
+
+    // โหลดข้อมูลล่าสุดจาก IndexedDB (ถ้ามีข้อมูลที่ใหญ่กว่าและใหม่กว่า)
+    if (typeof NovelStorage !== "undefined" && NovelStorage.loadAllStories) {
+      NovelStorage.loadAllStories()
+        .then((loaded) => {
+          if (Array.isArray(loaded) && loaded.length > 0) {
+            state.stories = loaded;
+            const story = getActiveStory();
+            loadStoryIntoEditor(story);
+          }
+        })
+        .catch(() => {});
+    }
   }
 
   async function checkBackendStatus() {
@@ -202,6 +253,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (res.ok) {
         const data = await res.json();
         console.log("🟢 [Novel AI] เชื่อมต่อ Backend & Supabase สำเร็จ:", data);
+        if (saveStatusText) {
+          saveStatusText.textContent = "บันทึกแล้ว (คลาวด์พร้อม ☁️)";
+        }
       }
     } catch (e) {
       console.log("ℹ️ [Novel AI] กำลังทำงานในโหมด Client Standalone / Offline");
@@ -438,8 +492,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (btnUpgrade) {
       btnUpgrade.addEventListener("click", () => {
+        openModal("modal-upgrade");
+      });
+    }
+
+    const btnActivatePro = document.getElementById("btn-activate-pro-preview");
+    if (btnActivatePro) {
+      btnActivatePro.addEventListener("click", () => {
+        state.isPro = true;
+        closeModal("modal-upgrade");
+        if (btnUpgrade) {
+          btnUpgrade.innerHTML = `⭐ PRO ACTIVE`;
+          btnUpgrade.style.background =
+            "linear-gradient(135deg, #10b981 0%, #06b6d4 100%)";
+        }
         showToast(
-          "🌟 คุณกำลังใช้งานเวอร์ชันทดลอง Pro ฟรี! ทุกฟีเจอร์ AI และ Lorebook ปลดล็อกครบถ้วน ✨",
+          "🌟 ปลดล็อกสิทธิ์ Pro Preview เรียบร้อยแล้ว! ใช้งาน Gemini 3.8 Flash และระบบคิดสดเต็มรูปแบบ ✨",
         );
       });
     }
@@ -662,17 +730,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const getCurrentDocTitle = () =>
       (getActiveStory()?.title || docTitleInput.value || "นิยายของฉัน").trim();
 
+    const getSafeFilename = (ext) => {
+      const clean = getCurrentDocTitle()
+        .replace(/[/\\?%*:|"<>]/g, "_")
+        .trim();
+      return `${clean || "novel"}.${ext}`;
+    };
+
     const btnExportTxt = document.getElementById("btn-export-txt");
     if (btnExportTxt)
       btnExportTxt.addEventListener("click", () =>
-        downloadFile(`${getCurrentDocTitle()}.txt`, canvasBody.innerText),
+        downloadFile(getSafeFilename("txt"), canvasBody.innerText),
       );
 
     const btnExportMd = document.getElementById("btn-export-md");
     if (btnExportMd)
       btnExportMd.addEventListener("click", () =>
         downloadFile(
-          `${getCurrentDocTitle()}.md`,
+          getSafeFilename("md"),
           `# ${getCurrentDocTitle()}\n\n` +
             htmlToMarkdown(canvasBody.innerHTML),
         ),
@@ -680,24 +755,81 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const btnExportHtml = document.getElementById("btn-export-html");
     if (btnExportHtml)
-      btnExportHtml.addEventListener("click", () =>
+      btnExportHtml.addEventListener("click", () => {
+        const safeTitle = escapeHtml(getCurrentDocTitle());
         downloadFile(
-          `${getCurrentDocTitle()}.html`,
-          `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${getCurrentDocTitle()}</title></head><body><h1>${getCurrentDocTitle()}</h1>${canvasBody.innerHTML}</body></html>`,
-        ),
-      );
+          getSafeFilename("html"),
+          `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${safeTitle}</title></head><body><h1>${safeTitle}</h1>${canvasBody.innerHTML}</body></html>`,
+        );
+      });
 
     const btnShare = document.getElementById("btn-share");
     if (btnShare) {
       btnShare.addEventListener("click", () => {
+        openModal("modal-share");
+      });
+    }
+
+    const btnShareCanvas = document.getElementById("btn-share-copy-canvas");
+    if (btnShareCanvas) {
+      btnShareCanvas.addEventListener("click", () => {
+        const title = getCurrentDocTitle();
+        const text = canvasBody.innerText || "";
+        const fullContent = `${title}\n\n${text}`.trim();
+        navigator.clipboard
+          .writeText(fullContent)
+          .then(() => {
+            closeModal("modal-share");
+            showToast(
+              "คัดลอกเนื้อหานิยายทั้งหมดลงคลิปบอร์ดแล้ว พร้อมนำไปวางในเว็บนิยาย 📋✨",
+            );
+          })
+          .catch(() => showToast("คัดลอกไม่สำเร็จ"));
+      });
+    }
+
+    const btnShareSynopsis = document.getElementById("btn-share-copy-synopsis");
+    if (btnShareSynopsis) {
+      btnShareSynopsis.addEventListener("click", () => {
+        const story = getActiveStory();
+        const chars = (story.characters || [])
+          .map((c) => `- ${c.name} (${c.role || "ทั่วไป"}): ${c.desc || ""}`)
+          .join("\n");
+        const locs = (story.locations || [])
+          .map((l) => `- ${l.name} (${l.type || "สถานที่"}): ${l.desc || ""}`)
+          .join("\n");
+        const overview = (story.overview || [])
+          .map((o) => `[${o.title}]: ${o.desc || ""}`)
+          .join("\n");
+        const synopsis = [
+          `📖 ชื่อเรื่อง: ${story.title}`,
+          overview ? `\n📌 ภาพรวมโครงเรื่อง:\n${overview}` : "",
+          chars ? `\n👥 ตัวละครสำคัญ:\n${chars}` : "",
+          locs ? `\n🗺️ สถานที่สำคัญ:\n${locs}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n");
+
+        navigator.clipboard
+          .writeText(synopsis)
+          .then(() => {
+            closeModal("modal-share");
+            showToast("คัดลอกข้อมูลสรุปโครงเรื่องและ Lorebook แล้ว 📝✨");
+          })
+          .catch(() => showToast("คัดลอกไม่สำเร็จ"));
+      });
+    }
+
+    const btnShareLink = document.getElementById("btn-share-copy-link");
+    if (btnShareLink) {
+      btnShareLink.addEventListener("click", () => {
         navigator.clipboard
           .writeText(window.location.href)
           .then(() => {
-            showToast("คัดลอกลิงก์โครงการแล้ว");
+            closeModal("modal-share");
+            showToast("คัดลอกลิงก์โครงการสตูดิโอแล้ว 🔗");
           })
-          .catch(() => {
-            showToast("เตรียมพร้อมสำหรับการแชร์");
-          });
+          .catch(() => showToast("คัดลอกไม่สำเร็จ"));
       });
     }
   }
@@ -1285,7 +1417,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } else if (msg.role === "user") {
       actionsHtml = `
         <div class="user-msg-actions">
-          <button class="user-action-btn edit-btn" data-action="edit" data-index="${index}" title="แก้ไขคำสั่งนี้">
+          <button class="user-action-btn edit-btn" data-action="edit" data-index="${index}" title="แก้ไขคำสั่งนี้" aria-label="แก้ไขคำสั่งนี้">
             <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M11 2a2 2 0 0 1 2.8 2.8L5 13.6 2 14l.4-3L11 2z"/>
             </svg>
@@ -1384,9 +1516,66 @@ document.addEventListener("DOMContentLoaded", () => {
             showToast("กำลังสร้างคำตอบใหม่... 🔄");
           }
         } else if (action === "edit") {
-          chatInput.value = msg.content;
-          chatInput.focus();
-          showToast("นำคำสั่งเดิมกลับมาที่ช่องแชทเพื่อแก้ไขแล้ว ✏️");
+          const bubble = el.querySelector(".msg-bubble");
+          if (!bubble) return;
+
+          const currentText = msg.content;
+          bubble.innerHTML = `
+            <div class="inline-msg-edit-box">
+              <textarea class="inline-msg-edit-textarea" rows="3" aria-label="แก้ไขข้อความคำสั่ง">${StoryChatCore.escapeHtml(currentText)}</textarea>
+              <div class="inline-msg-edit-actions">
+                <button type="button" class="btn-inline-cancel" aria-label="ยกเลิกการแก้ไข">ยกเลิก</button>
+                <button type="button" class="btn-inline-save" aria-label="บันทึกการแก้ไขข้อความ">บันทึก</button>
+                <button type="button" class="btn-inline-resend" aria-label="บันทึกและส่งให้ AI แต่งใหม่">บันทึก & ส่งใหม่</button>
+              </div>
+            </div>
+          `;
+          const textarea = bubble.querySelector(".inline-msg-edit-textarea");
+          const btnCancel = bubble.querySelector(".btn-inline-cancel");
+          const btnSave = bubble.querySelector(".btn-inline-save");
+          const btnResend = bubble.querySelector(".btn-inline-resend");
+
+          textarea.focus();
+          textarea.setSelectionRange(
+            textarea.value.length,
+            textarea.value.length,
+          );
+
+          btnCancel.addEventListener("click", () => {
+            renderChat();
+          });
+
+          btnSave.addEventListener("click", () => {
+            const updated = textarea.value.trim();
+            if (updated) {
+              const currentStory = getActiveStory();
+              currentStory.chatMessages = StoryChatCore.editChatMessage(
+                currentStory.chatMessages,
+                index,
+                updated,
+              );
+              currentStory.updatedAt = Date.now();
+              saveStories();
+              renderChat();
+              showToast("แก้ไขข้อความเรียบร้อยแล้ว ✏️");
+            }
+          });
+
+          btnResend.addEventListener("click", () => {
+            const updated = textarea.value.trim();
+            if (updated) {
+              const currentStory = getActiveStory();
+              currentStory.chatMessages = currentStory.chatMessages.slice(
+                0,
+                index,
+              );
+              currentStory.updatedAt = Date.now();
+              saveStories();
+              renderChat();
+              sendUserMessage(updated);
+              showToast("ส่งคำสั่งที่แก้ไขใหม่แล้ว 🚀");
+            }
+          });
         }
       });
     });
@@ -1395,22 +1584,33 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function formatAiResponseText(text) {
+    if (
+      typeof StoryChatCore !== "undefined" &&
+      StoryChatCore.formatAiResponseText
+    ) {
+      return StoryChatCore.formatAiResponseText(text);
+    }
     if (!text) return "";
-    return text
+    let safe = escapeHtml(text);
+    return safe
       .replace(
-        /<story_canvas>[\s\S]*?<\/story_canvas>/gi,
+        /&lt;story_canvas&gt;[\s\S]*?&lt;\/story_canvas&gt;/gi,
         '<div class="story-canvas-tag-badge"><span class="badge-icon">📖</span> <span class="badge-text">เนื้อหานิยายถูกส่งเข้าหน้ากระดาษตรงกลางเรียบร้อยแล้ว</span></div>',
       )
       .replace(
-        /<story_canvas>/gi,
+        /&lt;story_canvas&gt;/gi,
         '<div class="story-canvas-streaming-badge"><span class="badge-pulse"></span> กำลังรังสรรค์เนื้อเรื่องลงกระดาษ...</div>',
       )
-      .replace(/<\/story_canvas>/gi, "")
+      .replace(/&lt;\/story_canvas&gt;/gi, "")
       .replace(
         /\[STORY_START\]/gi,
         '<div style="margin: 8px 0; padding: 10px; border-left: 3px solid var(--accent-blue); background: rgba(59,130,246,0.08); border-radius: 4px;">',
       )
       .replace(/\[STORY_END\]/gi, "</div>")
+      .replace(
+        /\[⏹️ หยุดการสร้างแล้ว\]/g,
+        '<span style="color: var(--text-muted); font-size: 11.5px;">(⏹️ หยุดการสร้างแล้ว)</span>',
+      )
       .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
       .replace(/\*(.*?)\*/g, "<em>$1</em>")
       .replace(/\n\n/g, "<br><br>")
@@ -1652,13 +1852,15 @@ document.addEventListener("DOMContentLoaded", () => {
             if (done) break;
 
             sseBuffer += decoder.decode(value, { stream: true });
-            const events = StoryChatCore.parseSseStreamChunk(sseBuffer);
-
-            // เก็บเศษข้อความที่ยังไม่สมบูรณ์
-            const lastDoubleNl = sseBuffer.lastIndexOf("\n\n");
-            if (lastDoubleNl !== -1) {
-              sseBuffer = sseBuffer.slice(lastDoubleNl + 2);
-            }
+            const { events, remainingBuffer } =
+              typeof StoryChatCore !== "undefined" &&
+              StoryChatCore.parseSseBlocks
+                ? StoryChatCore.parseSseBlocks(sseBuffer)
+                : {
+                    events: StoryChatCore.parseSseStreamChunk(sseBuffer),
+                    remainingBuffer: "",
+                  };
+            sseBuffer = remainingBuffer;
 
             for (const { event, data } of events) {
               if (event === "thinking" && data.chunk) {
@@ -1680,6 +1882,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 if (data.thinking_logs) tempAiMsg.thinking = data.thinking_logs;
                 if (data.story_output) tempAiMsg.content = data.story_output;
+                if (data.has_canvas && data.canvas_text) {
+                  insertTextIntoEditor(data.canvas_text, true);
+                  if (data.chat_text) tempAiMsg.content = data.chat_text;
+                  tempAiMsg.autoSavedToCanvas = true;
+                  showToast(
+                    "นำเนื้อเรื่องส่งลงหน้ากระดาษตรงกลางเรียบร้อยแล้ว ✍️",
+                  );
+                }
                 pendingThought = true;
                 pendingStory = true;
                 flushUi();
@@ -1695,6 +1905,12 @@ document.addEventListener("DOMContentLoaded", () => {
             rafId = null;
           }
           flushUi();
+
+          if (!streamedSuccessfully) {
+            throw new Error(
+              "การเชื่อมต่อสตรีมถูกตัดก่อนเสร็จสิ้น (ไม่ได้รับสัญญาณ done)",
+            );
+          }
         } else {
           throw new Error(`Backend Error ${streamResponse.status}`);
         }
@@ -1777,16 +1993,18 @@ document.addEventListener("DOMContentLoaded", () => {
       lastAiMsg.thinkingDuration = totalElapsedSec;
       lastAiMsg.thoughtOpen = false; // collapse on settle
 
-      // แยกแท็กเนื้อเรื่อง <story_canvas> หรือใช้ Smart Story Extractor ส่งเข้าหน้ากระดาษตรงกลางอัตโนมัติ
-      const splitResult = StoryChatCore.splitChatAndCanvasContent(
-        lastAiMsg.content,
-        text,
-      );
-      if (splitResult.hasCanvasContent && splitResult.canvasText) {
-        insertTextIntoEditor(splitResult.canvasText, true);
-        lastAiMsg.content = splitResult.chatText;
-        lastAiMsg.autoSavedToCanvas = true;
-        showToast("นำเนื้อเรื่องส่งลงหน้ากระดาษตรงกลางเรียบร้อยแล้ว ✍️");
+      // แยกแท็กเนื้อเรื่อง <story_canvas> หรือใช้ Smart Story Extractor ส่งเข้าหน้ากระดาษตรงกลางอัตโนมัติ (หากยังไม่ได้แยกจาก structured output)
+      if (!lastAiMsg.autoSavedToCanvas) {
+        const splitResult = StoryChatCore.splitChatAndCanvasContent(
+          lastAiMsg.content,
+          text,
+        );
+        if (splitResult.hasCanvasContent && splitResult.canvasText) {
+          insertTextIntoEditor(splitResult.canvasText, true);
+          lastAiMsg.content = splitResult.chatText;
+          lastAiMsg.autoSavedToCanvas = true;
+          showToast("นำเนื้อเรื่องส่งลงหน้ากระดาษตรงกลางเรียบร้อยแล้ว ✍️");
+        }
       }
 
       currentStory.updatedAt = Date.now();
@@ -1807,7 +2025,7 @@ document.addEventListener("DOMContentLoaded", () => {
           lastAiMsg.content &&
           lastAiMsg.content !==
             "กำลังคิดและรังสรรค์เนื้อเรื่องตามคำสั่งของคุณ..."
-            ? `${lastAiMsg.content} <span style="color: var(--text-muted); font-size: 11.5px;">(⏹️ หยุดการสร้างแล้ว)</span>`
+            ? `${lastAiMsg.content} [⏹️ หยุดการสร้างแล้ว]`
             : "⏹️ ยกเลิกการสร้างข้อความแล้ว";
         delete lastAiMsg.isThinking;
         lastAiMsg.thinkingDuration = totalElapsedSec;
@@ -2028,8 +2246,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
-  // ================= Live Gemini API Connection (Full Context + Multi-turn History) =================
-  // ================= Live Gemini API Connection (Locked: gemini-3.8-flash & gemini-2.5-flash) =================
+  // ================= Live Gemini API Connection (Standard: gemini-3.8-flash & gemini-3.1-flash-lite) =================
   async function callGeminiApi(prompt) {
     const currentStory = getActiveStory();
     const systemInstructionText = StoryChatCore.buildStoryContextPrompt(
@@ -2075,23 +2292,26 @@ document.addEventListener("DOMContentLoaded", () => {
       },
     };
 
-    // ใช้โมเดลความเร็วสูงที่มีเสถียรภาพ และมีระบบ Fallback ลำดับถัดไป
+    // ใช้โมเดลความเร็วสูงที่มีเสถียรภาพ และมีระบบ Fallback ลำดับถัดไป (gemini-3.8-flash -> gemini-3.1-flash-lite -> gemini-2.5-flash)
     const modelsToTry = [
+      "gemini-3.8-flash",
       "gemini-3.1-flash-lite",
-      "gemini-3.5-flash",
-      "gemini-flash-lite-latest",
+      "gemini-2.5-flash",
     ];
     let lastError = null;
 
     for (const modelName of modelsToTry) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(state.apiKey)}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
       try {
         const res = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": state.apiKey,
+          },
           body: JSON.stringify(payload),
           signal: controller.signal,
         });
@@ -2135,13 +2355,17 @@ document.addEventListener("DOMContentLoaded", () => {
           if (res.status === 401 || res.status === 403) {
             break;
           }
-          console.warn(`[Client Gemini Notice] โมเดล ${modelName} ตอบกลับ HTTP ${res.status} กำลังลองโมเดลถัดไป...`);
+          console.warn(
+            `[Client Gemini Notice] โมเดล ${modelName} ตอบกลับ HTTP ${res.status} กำลังลองโมเดลถัดไป...`,
+          );
         }
       } catch (fetchErr) {
         clearTimeout(timeoutId);
         lastError = fetchErr;
         if (fetchErr.name === "AbortError") {
-          console.warn(`[Client Timeout] โมเดล ${modelName} ไม่ตอบสนองใน 10 วินาที กำลังลองโมเดลถัดไป...`);
+          console.warn(
+            `[Client Timeout] โมเดล ${modelName} ไม่ตอบสนองใน 10 วินาที กำลังลองโมเดลถัดไป...`,
+          );
         }
       }
     }
@@ -2177,21 +2401,81 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ================= Modal Helpers =================
+  // ================= Modal Helpers (Accessible WAI-ARIA Focus Trap & Escape) =================
+  let lastActiveElementBeforeModal = null;
+  let activeModalKeydownHandler = null;
+
   window.openModal = function (id) {
     const m = document.getElementById(id);
-    if (m) m.classList.add("active");
+    if (!m) return;
+
+    lastActiveElementBeforeModal = document.activeElement;
+    m.classList.add("active");
+    m.setAttribute("aria-hidden", "false");
+
+    const focusableElements = m.querySelectorAll(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    const firstFocusable = focusableElements[0];
+    const lastFocusable = focusableElements[focusableElements.length - 1];
+
+    if (firstFocusable) {
+      setTimeout(() => firstFocusable.focus(), 60);
+    }
+
+    if (activeModalKeydownHandler) {
+      document.removeEventListener("keydown", activeModalKeydownHandler);
+    }
+
+    activeModalKeydownHandler = function (e) {
+      if (e.key === "Escape") {
+        closeModal(id);
+        return;
+      }
+
+      if (e.key === "Tab") {
+        if (e.shiftKey) {
+          if (document.activeElement === firstFocusable) {
+            e.preventDefault();
+            lastFocusable?.focus();
+          }
+        } else {
+          if (document.activeElement === lastFocusable) {
+            e.preventDefault();
+            firstFocusable?.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener("keydown", activeModalKeydownHandler);
   };
 
   window.closeModal = function (id) {
     const m = document.getElementById(id);
-    if (m) m.classList.remove("active");
+    if (m) {
+      m.classList.remove("active");
+      m.setAttribute("aria-hidden", "true");
+    }
+
+    if (activeModalKeydownHandler) {
+      document.removeEventListener("keydown", activeModalKeydownHandler);
+      activeModalKeydownHandler = null;
+    }
+
+    if (
+      lastActiveElementBeforeModal &&
+      typeof lastActiveElementBeforeModal.focus === "function"
+    ) {
+      lastActiveElementBeforeModal.focus();
+      lastActiveElementBeforeModal = null;
+    }
   };
 
   document.querySelectorAll(".modal-backdrop").forEach((modal) => {
     modal.addEventListener("click", (e) => {
       if (e.target === modal) {
-        modal.classList.remove("active");
+        closeModal(modal.id);
       }
     });
   });

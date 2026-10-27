@@ -267,57 +267,68 @@ ${recentNovelText || "(หน้ากระดาษยังว่างเป
   }
 
   // ทำความสะอาดเนื้อหานิยายก่อนส่งลงหน้ากระดาษตามกฎข้อ 3, 4, 5
+  // ทำความสะอาดเนื้อหานิยายก่อนส่งลงหน้ากระดาษ (ลบเฉพาะ meta-commentary ของ AI โดยคุ้มครองบทสนทนาและเนื้อเรื่องจริง)
   function cleanCanvasNovelContent(text) {
     if (!text) return "";
     let lines = text.trim().split("\n");
 
-    // กรองบรรทัดเกริ่นนำด้านหน้า (Leading greetings / pleasantries)
+    const isDialogueOrQuote = (line) => {
+      const t = line.trim();
+      return (
+        /^["'“「『«—–-]/.test(t) ||
+        /["'”」』»]$/.test(t) ||
+        /["'“「][^"'”」]{2,}["'”」]/.test(t)
+      );
+    };
+
+    // กรองบรรทัดเกริ่นนำด้านหน้า (เฉพาะที่เป็น Meta chatter คุยกับนักเขียน ไม่ใช่บทสนทนาหรือเนื้อหานิยาย)
+    const LEADING_META_PATTERNS = [
+      /^(ยินดีต้อนรับ|ขอต้อนรับ)/i,
+      /^(ยินดีครับ|ยินดีค่ะ|รับทราบครับ|รับทราบค่ะ|ได้เลยครับ|ได้เลยค่ะ|จัดให้ครับ|จัดให้ค่ะ|แต่งต่อให้|เขียนต่อให้)(.*)(:|ครับ|ค่ะ|แล้ว|\s*$)/i,
+      /^(นี่คือ|ต่อไปนี้คือ|สำหรับนิยาย|บทนี้จะเล่า)(.*)(เนื้อเรื่อง|เนื้อหา|ฉาก|บทที่|โครงเรื่อง|ตามที่คุณขอ|:)/i,
+    ];
+
     while (lines.length > 0) {
       const firstLine = lines[0].trim();
       if (!firstLine) {
         lines.shift();
         continue;
       }
-      if (
-        firstLine.startsWith("ข้าพเจ้า") ||
-        firstLine.startsWith("ยินดี") ||
-        firstLine.startsWith("สำหรับนิยาย") ||
-        firstLine.startsWith("นี่คือ") ||
-        firstLine.startsWith("ต่อไปนี้คือ") ||
-        firstLine.startsWith("บทนี้จะเล่า") ||
-        firstLine.startsWith("ขอต้อนรับ") ||
-        firstLine.startsWith("สวัสดี") ||
-        firstLine.startsWith("รับทราบ") ||
-        firstLine.startsWith("ได้เลยครับ") ||
-        firstLine.startsWith("ได้เลยค่ะ") ||
-        firstLine.startsWith("แต่งต่อให้") ||
-        firstLine.startsWith("เขียนต่อให้") ||
-        firstLine.startsWith("จัดให้ครับ") ||
-        firstLine.startsWith("จัดให้ค่ะ")
-      ) {
+      // ถ้าเป็นบทสนทนา ห้ามลบเด็ดขาด
+      if (isDialogueOrQuote(firstLine)) {
+        break;
+      }
+      // ถ้าตรงกับรูปแบบคำเกริ่นนำของ AI ให้ตัดออก
+      const isMeta = LEADING_META_PATTERNS.some((pat) => pat.test(firstLine));
+      if (isMeta) {
         lines.shift();
       } else {
         break;
       }
     }
 
-    // กรองบรรทัดสรุปปิดท้ายหรือคำถามชวนคุย (Trailing summaries / questions)
+    // กรองบรรทัดสรุปปิดท้ายหรือคำถามชวนคุย (เฉพาะข้อความลงท้ายของ AI ไม่ใช่บทสนทนาหรือเนื้อเรื่องจริง)
+    const TRAILING_META_PATTERNS = [
+      /(หวังว่าคุณจะชอบ|หวังว่าจะชอบ|หวังว่าจะถูกใจ|ชอบหรือไม่ครับ|ชอบหรือไม่คะ)/i,
+      /(ต้องการให้(ผม|ฉัน|ดิฉัน|ข้าพเจ้า|AI)ช่วย|ต้องการให้ปรับตรงไหน|ต้องการให้แต่งต่อ|ต้องการให้เพิ่มตรงไหน)/i,
+      /(หากต้องการให้ปรับ|สามารถแจ้ง(ได้|ให้ปรับ|ความต้องการ)|มีอะไรให้ช่วยเพิ่มเติม|ติชมได้)/i,
+      /^---+\s*$/,
+      /^[💡📌✨💬]\s*/,
+    ];
+
     while (lines.length > 0) {
       const lastLine = lines[lines.length - 1].trim();
       if (!lastLine) {
         lines.pop();
         continue;
       }
-      if (
-        lastLine.includes("หวังว่า") ||
-        lastLine.includes("ต้องการให้") ||
-        lastLine.includes("ชอบหรือไม่") ||
-        lastLine.includes("มีอะไรให้ช่วย") ||
-        lastLine.includes("สามารถแจ้งได้") ||
-        lastLine.includes("สามารถปรับ") ||
-        lastLine.startsWith("---") ||
-        lastLine.startsWith("💡")
-      ) {
+      // ถ้าเป็นบทสนทนา ห้ามลบเด็ดขาด
+      if (isDialogueOrQuote(lastLine)) {
+        break;
+      }
+      // ถ้าตรงกับคำลงท้ายของ AI
+      const isMeta = TRAILING_META_PATTERNS.some((pat) => pat.test(lastLine));
+      if (isMeta) {
         lines.pop();
       } else {
         break;
@@ -396,14 +407,18 @@ ${recentNovelText || "(หน้ากระดาษยังว่างเป
     const hasNovelDialogue = /["'“「][^"'”」]{2,}["'”」]/.test(cleanText);
     const hasNarrativeParagraphs =
       cleanText.split(/\n\n+/).length >= 2 && cleanText.length > 70;
-    const isNotPureAdvice =
-      !/^(ข้อเสนอแนะ|คำแนะนำ|แนวทางการพัฒนา|ไอเดียพล็อต|จุดเปลี่ยนสำคัญ|ความเห็นเกี่ยวกับ)/i.test(
+    const isAdviceOrOutline =
+      /^(ข้อเสนอแนะ|คำแนะนำ|แนวทางการพัฒนา|ไอเดียพล็อต|จุดเปลี่ยนสำคัญ|ความเห็นเกี่ยวกับ|การพัฒนา|สรุป|วิเคราะห์)/i.test(
         cleanText.trim(),
-      );
+      ) ||
+      /^(นี่คือ|สำหรับ)(.*)(คำแนะนำ|ข้อเสนอแนะ|แนวทาง|ไอเดีย)/i.test(
+        cleanText.trim(),
+      ) ||
+      /^(\d+\.|\-|\*)\s*(แนะนำ|เสนอ|ควร|ต้อง)/m.test(cleanText.trim());
 
     if (
       (isWritingCommand || (hasNovelDialogue && hasNarrativeParagraphs)) &&
-      isNotPureAdvice
+      !isAdviceOrOutline
     ) {
       const canvasText = cleanCanvasNovelContent(cleanText);
       if (canvasText.length > 20) {
@@ -483,6 +498,22 @@ ${recentNovelText || "(หน้ากระดาษยังว่างเป
     return events;
   }
 
+  // ถอดรหัสเฉพาะบล็อก SSE ที่สมบูรณ์ (จบด้วย \n\n) และคืนค่าก้อนส่วนที่เหลือ (remainder)
+  function parseSseBlocks(buffer) {
+    if (!buffer) return { events: [], remainingBuffer: "" };
+
+    const lastDoubleNl = buffer.lastIndexOf("\n\n");
+    if (lastDoubleNl === -1) {
+      return { events: [], remainingBuffer: buffer };
+    }
+
+    const completeChunk = buffer.slice(0, lastDoubleNl + 2);
+    const remainingBuffer = buffer.slice(lastDoubleNl + 2);
+    const events = parseSseStreamChunk(completeChunk);
+
+    return { events, remainingBuffer };
+  }
+
   // สร้างสถานะเริ่มต้นสำหรับตัวรับสตรีมมิ่งหน้าบ้าน
   function createStreamingState() {
     return {
@@ -549,6 +580,52 @@ ${recentNovelText || "(หน้ากระดาษยังว่างเป
     return [thinkingText.trim()];
   }
 
+  // ป้องกัน XSS: ทำความสะอาดอักขระ HTML ให้เป็น HTML entities ที่ปลอดภัย
+  function escapeHtml(text) {
+    if (typeof text !== "string") return "";
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  // แปลงข้อความคำตอบของ AI ให้ปลอดภัยจาก XSS ก่อนแปลงมาร์กดาวน์และแบดจ์
+  function formatAiResponseText(text) {
+    if (!text) return "";
+
+    // ขั้นตอนที่ 1: Escape อักขระ HTML ดิบทั้งหมดก่อนเพื่อป้องกัน XSS
+    let safe = escapeHtml(text);
+
+    // ขั้นตอนที่ 2: แทนที่แท็ก <story_canvas> ที่ถูก escape เป็น &lt;story_canvas&gt; ด้วย Badge ปลอดภัย
+    safe = safe
+      .replace(
+        /&lt;story_canvas&gt;[\s\S]*?&lt;\/story_canvas&gt;/gi,
+        '<div class="story-canvas-tag-badge"><span class="badge-icon">📖</span> <span class="badge-text">เนื้อหานิยายถูกส่งเข้าหน้ากระดาษตรงกลางเรียบร้อยแล้ว</span></div>',
+      )
+      .replace(
+        /&lt;story_canvas&gt;/gi,
+        '<div class="story-canvas-streaming-badge"><span class="badge-pulse"></span> กำลังรังสรรค์เนื้อเรื่องลงกระดาษ...</div>',
+      )
+      .replace(/&lt;\/story_canvas&gt;/gi, "")
+      .replace(
+        /\[STORY_START\]/gi,
+        '<div style="margin: 8px 0; padding: 10px; border-left: 3px solid var(--accent-blue); background: rgba(59,130,246,0.08); border-radius: 4px;">',
+      )
+      .replace(/\[STORY_END\]/gi, "</div>")
+      .replace(
+        /\[⏹️ หยุดการสร้างแล้ว\]/g,
+        '<span style="color: var(--text-muted); font-size: 11.5px;">(⏹️ หยุดการสร้างแล้ว)</span>',
+      )
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.*?)\*/g, "<em>$1</em>")
+      .replace(/\n\n/g, "<br><br>")
+      .replace(/\n/g, "<br>");
+
+    return safe;
+  }
+
   return {
     createDefaultStory,
     addNewStory,
@@ -567,9 +644,12 @@ ${recentNovelText || "(หน้ากระดาษยังว่างเป
     splitChatAndCanvasContent,
     extractPureStoryContent,
     parseSseStreamChunk,
+    parseSseBlocks,
     createStreamingState,
     appendStreamChunk,
     parseThinkingSteps,
+    escapeHtml,
+    formatAiResponseText,
   };
 })();
 
