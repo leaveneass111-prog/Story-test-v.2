@@ -146,15 +146,15 @@ function runTests() {
   assert(steps[0] === 'ตรวจสอบ Lorebook', 'ล้างอิโมจิและหมายเลขกำกับสเต็ปแรกได้สะอาด');
   assert(steps[1] === 'วางโครงเรื่องฉาก', 'สเต็ปที่สองถูกต้อง');
 
-  // --- Suite 10: Prompt Rules (5 Rules Verification) ---
+  // --- Suite 10: Prompt Rules Verification ---
   console.log('\n[Suite 10: Story Context Prompt Rules Verification]');
   const promptOutput = StoryChatCore.buildStoryContextPrompt(defaultStory, 'เนื้อหาหน้ากระดาษจำลอง', 'บรรยายเน้นอารมณ์');
   assert(promptOutput.includes('คุณคือผู้ช่วยเขียนนิยาย'), 'Prompt มีบทบาทผู้ช่วยเขียนนิยาย');
   assert(promptOutput.includes('หากผู้ใช้ชวนคุย ปรึกษาพล็อต หรือวางโครงเรื่อง'), 'กฎข้อ 1: ชวนคุยปรึกษาพล็อตครบถ้วน');
   assert(promptOutput.includes('<story_canvas>...</story_canvas>'), 'กฎข้อ 2: แท็ก <story_canvas> ระบุครบถ้วน');
-  assert(promptOutput.includes('ห้ามมีข้อความเกริ่นนำ คำทักทาย'), 'กฎข้อ 3: ห้ามมีข้อความเกริ่นนำครบถ้วน');
-  assert(promptOutput.includes('ให้เริ่มบรรทัดแรกภายในแท็ก <story_canvas> ด้วยเนื้อหาหลักหรือหัวข้อแรกทันทีโดยไม่ต้องมีบทนำ'), 'กฎข้อ 4: เริ่มบรรทัดแรกทันทีครบถ้วน');
-  assert(promptOutput.includes('ห้ามมีข้อความสรุปปิดท้ายหรือคำถามชวนคุย'), 'กฎข้อ 5: ห้ามมีสรุปปิดท้ายครบถ้วน');
+  assert(promptOutput.includes('แทนที่ข้อความที่เลือกให้อัตโนมัติ'), 'Prompt กำหนดให้แทนที่ข้อความที่เลือกเมื่อปรับแก้');
+  assert(promptOutput.includes('ห้ามสร้างเนื้อหาใน <story_canvas>'), 'Prompt ป้องกันการปรับแก้โดยไม่มีข้อความที่เลือก');
+  assert(promptOutput.includes('ห้ามมีข้อความเกริ่นนำ คำทักทาย'), 'Prompt กำหนดให้ส่งเฉพาะเนื้อหาที่จะเขียน');
 
   // --- Suite 11: Split Chat and Story Canvas Content ---
   console.log('\n[Suite 11: Split Chat and Story Canvas Content]');
@@ -213,6 +213,30 @@ function runTests() {
   assert(splitF.hasCanvasContent === true, 'Smart Extractor: ตรวจจับเนื้อเรื่องได้สำเร็จแม้ AI ลืมใส่แท็ก');
   assert(splitF.canvasText.includes('ด้วยกระจกเงาใสสะอาด'), 'ดึงเนื้อเรื่องส่งเข้า Canvas สำเร็จ');
   assert(splitF.chatText.includes('นำเนื้อเรื่องส่งลงหน้ากระดาษ'), 'ข้อความแชทแจ้งสถานะการส่งลงกระดาษเรียบร้อย');
+
+  // Case F2: ปรับแก้ข้อความที่เลือกต้องเขียนกลับแทนที่ข้อความเดิมอัตโนมัติ
+  const selectedEditPrompt =
+    'ช่วยปรับแก้สำนวนนี้ [TEXT_TO_REVISE]\nต้นฉบับที่เลือก\n[/TEXT_TO_REVISE]';
+  const splitEdit = StoryChatCore.splitChatAndCanvasContent(
+    'ม่านฝนบางเบาคลี่คลุมเมืองเก่า แสงจากหน้าต่างส่องสะท้อนแอ่งน้ำ',
+    selectedEditPrompt,
+  );
+  assert(splitEdit.hasCanvasContent === true, 'คำสั่งปรับแก้ข้อความที่เลือกตรวจพบเป็นเนื้อหาสำหรับ Canvas');
+  assert(splitEdit.canvasText.includes('ม่านฝนบางเบา'), 'ดึงฉบับปรับแก้ไปเขียนทับข้อความที่เลือก');
+  const splitShortEdit = StoryChatCore.splitChatAndCanvasContent(
+    'คำใหม่',
+    selectedEditPrompt,
+  );
+  assert(splitShortEdit.hasCanvasContent === true, 'ยอมรับฉบับแก้ไขสั้น เช่น การแก้คำเดียว');
+  assert(splitShortEdit.canvasText === 'คำใหม่', 'รักษาผลลัพธ์แก้ไขสั้นไว้ครบถ้วน');
+
+  // Case F3: ห้ามเขียนทับหรือเติมท้ายต้นฉบับ หากสั่งปรับแก้โดยไม่ได้เลือกข้อความ
+  const splitEditWithoutSelection = StoryChatCore.splitChatAndCanvasContent(
+    '<story_canvas>ฉบับแก้ไขที่ไม่มีเป้าหมายชัดเจน</story_canvas>',
+    'ช่วยปรับแก้สำนวนหน่อย',
+  );
+  assert(splitEditWithoutSelection.hasCanvasContent === false, 'ไม่เขียนลง Canvas เมื่อไม่ได้เลือกข้อความสำหรับปรับแก้');
+  assert(splitEditWithoutSelection.chatText.includes('เลือกข้อความ'), 'แจ้งให้เลือกข้อความก่อนสั่งปรับแก้');
 
   // Case G: คุ้มครองบทสนทนานิยายแท้จริงที่ขึ้นต้นด้วยคำพูด เช่น "สวัสดี", "ยินดี", "ข้าพเจ้า" หรือลงท้ายด้วย "หวังว่า"
   const sampleNovelWithDialogue = `<story_canvas>

@@ -260,10 +260,10 @@ ${recentNovelText || "(หน้ากระดาษยังว่างเป
 
 [กฎเหล็กในการทำงาน 5 ข้ออย่างเคร่งครัด]
 1. หากผู้ใช้ชวนคุย ปรึกษาพล็อต หรือวางโครงเรื่อง ให้ตอบกลับตามปกติเพื่อแสดงในช่องแชท
-2. หากผู้ใช้สั่งให้ "เขียนเนื้อเรื่อง", "แต่งต่อ", "แต่งต่อจากนี้", "เขียนต่อ", "แต่งฉาก...", "แต่งบทที่...", "เขียนลงกระดาษ", "ขอฉากต่อไป", "เพิ่มบทสนทนา", หรือ "เล่าต่อ" ให้คุณพูดคุยตอบรับสั้นๆ แล้วนำเนื้อหานิยายทั้งหมดใส่ไว้ในแท็ก <story_canvas>...</story_canvas> เสมอ ห้ามนำเนื้อหานิยายมาปนในข้อความแชทปกติ
-3. ภายในแท็ก <story_canvas> ห้ามมีข้อความเกริ่นนำ คำทักทาย การรับคำสั่ง หรือการอธิบายแนวคิดใดๆ ก่อนเข้าเนื้อหาเด็ดขาด (เช่น ห้ามใช้คำว่า "ข้าพเจ้ายินดี...", "สำหรับนิยายสไตล์นี้...", "นี่คือโครงร่าง...")
-4. ให้เริ่มบรรทัดแรกภายในแท็ก <story_canvas> ด้วยเนื้อหาหลักหรือหัวข้อแรกทันทีโดยไม่ต้องมีบทนำ
-5. ห้ามมีข้อความสรุปปิดท้ายหรือคำถามชวนคุยต่อท้ายเนื้อหาภายในแท็ก <story_canvas>`;
+2. หากผู้ใช้สั่งให้เขียนหรือแต่งเนื้อเรื่องต่อ ให้ใส่เฉพาะเนื้อหานิยายในแท็ก <story_canvas>...</story_canvas> โดยระบบจะต่อเนื้อหาไว้ท้ายต้นฉบับให้อัตโนมัติ
+3. หากผู้ใช้สั่งปรับแก้และมีข้อความที่เลือกกำกับไว้ใน [TEXT_TO_REVISE] ให้เขียนเฉพาะฉบับแก้ไขของข้อความนั้นในแท็ก <story_canvas>...</story_canvas> ระบบจะแทนที่ข้อความที่เลือกให้อัตโนมัติ ห้ามเขียนส่วนอื่นเพิ่ม
+4. หากผู้ใช้สั่งปรับแก้แต่ไม่มีข้อความใน [TEXT_TO_REVISE] ห้ามสร้างเนื้อหาใน <story_canvas> ให้ถามผู้ใช้ให้เลือกข้อความที่ต้องการแก้ในหน้ากระดาษก่อน
+5. ภายในแท็ก <story_canvas> ห้ามมีข้อความเกริ่นนำ คำทักทาย หรือคำอธิบาย ให้เริ่มด้วยเนื้อหาที่จะเขียนลงหน้ากระดาษทันที และห้ามมีคำสรุปหรือคำถามชวนคุยต่อท้าย`;
   }
 
   // ทำความสะอาดเนื้อหานิยายก่อนส่งลงหน้ากระดาษตามกฎข้อ 3, 4, 5
@@ -338,6 +338,12 @@ ${recentNovelText || "(หน้ากระดาษยังว่างเป
     return lines.join("\n").trim();
   }
 
+  function isEditingCommand(userPrompt = "") {
+    return /(ปรับแก้|ปรับปรุง(?:สำนวน|ข้อความ|ประโยค|ย่อหน้า|ฉาก|บท)|ปรับ(?:สำนวน|ข้อความ|ประโยค|ย่อหน้า|ภาษา|ฉาก|บท)|ปรับแต่ง(?:สำนวน|ข้อความ|ประโยค|ย่อหน้า|ภาษา|ฉาก|บท)|แก้(?:ไข|คำ|คำผิด|สำนวน|ประโยค|ย่อหน้า|ข้อความ|ฉาก|บท|ให้|ตรงนี้)|เกลาสำนวน|ตรวจแก้|ตรวจทาน|เขียนใหม่|รีไรต์|rewrite|revise|proofread|polish)/i.test(
+      userPrompt,
+    );
+  }
+
   // แยกข้อความพูดคุยในช่องแชท (chatText) กับเนื้อเรื่องที่ต้องส่งเข้ากระดาษตรงกลาง (canvasText)
   function splitChatAndCanvasContent(rawAiText, userPrompt = "") {
     if (!rawAiText) {
@@ -350,6 +356,18 @@ ${recentNovelText || "(หน้ากระดาษยังว่างเป
       .replace(/<think>[\s\S]*?<\/think>/gi, "")
       .replace(/\[THOUGHT_START\][\s\S]*?\[THOUGHT_END\]/gi, "")
       .trim();
+
+    const hasSelectedPassage = /\[TEXT_TO_REVISE\][\s\S]*?\[\/TEXT_TO_REVISE\]/i.test(
+      userPrompt,
+    );
+    if (isEditingCommand(userPrompt) && !hasSelectedPassage) {
+      return {
+        chatText:
+          "กรุณาเลือกข้อความที่ต้องการปรับแก้ในหน้ากระดาษก่อน แล้วส่งคำสั่งอีกครั้ง ระบบจะแทนที่ข้อความที่เลือกให้อัตโนมัติ",
+        canvasText: "",
+        hasCanvasContent: false,
+      };
+    }
 
     // 1. ตรวจสอบแท็ก <story_canvas>...</story_canvas> ตามข้อกำหนดหลัก
     const canvasMatch = cleanText.match(
@@ -403,6 +421,8 @@ ${recentNovelText || "(หน้ากระดาษยังว่างเป
       /(แต่งต่อ|แต่งเนื้อเรื่อง|เขียนต่อ|เขียนฉาก|แต่งฉาก|แต่งบท|เขียนบท|ลงกระดาษ|ขอฉาก|เพิ่มบทสนทนา|เล่าต่อ|เกลาสำนวน|ฉากต่อไป|แต่งอีก|แต่งให้)/i.test(
         p,
       );
+    const isCanvasRequest =
+      isWritingCommand || (isEditingCommand(userPrompt) && hasSelectedPassage);
 
     const hasNovelDialogue = /["'“「][^"'”」]{2,}["'”」]/.test(cleanText);
     const hasNarrativeParagraphs =
@@ -417,11 +437,13 @@ ${recentNovelText || "(หน้ากระดาษยังว่างเป
       /^(\d+\.|\-|\*)\s*(แนะนำ|เสนอ|ควร|ต้อง)/m.test(cleanText.trim());
 
     if (
-      (isWritingCommand || (hasNovelDialogue && hasNarrativeParagraphs)) &&
+      (isCanvasRequest || (hasNovelDialogue && hasNarrativeParagraphs)) &&
       !isAdviceOrOutline
     ) {
       const canvasText = cleanCanvasNovelContent(cleanText);
-      if (canvasText.length > 20) {
+      const minimumCanvasLength =
+        isEditingCommand(userPrompt) && hasSelectedPassage ? 1 : 20;
+      if (canvasText.length >= minimumCanvasLength) {
         return {
           chatText: "นำเนื้อเรื่องส่งลงหน้ากระดาษตรงกลางเรียบร้อยแล้วครับ ✍️✨",
           canvasText,
@@ -439,7 +461,7 @@ ${recentNovelText || "(หน้ากระดาษยังว่างเป
     };
   }
 
-  // สกัดเฉพาะเนื้อหานิยายล้วนๆ เวลาผู้ใช้กดปุ่ม "+ แทรกลงในนิยาย" หรือคัดลอก
+  // สกัดเฉพาะเนื้อหานิยายล้วนๆ สำหรับการคัดลอก
   function extractPureStoryContent(rawAiText) {
     if (!rawAiText) return "";
     const splitResult = splitChatAndCanvasContent(rawAiText);
@@ -641,6 +663,7 @@ ${recentNovelText || "(หน้ากระดาษยังว่างเป
     addNoteItem,
     buildStoryContextPrompt,
     cleanCanvasNovelContent,
+    isEditingCommand,
     splitChatAndCanvasContent,
     extractPureStoryContent,
     parseSseStreamChunk,

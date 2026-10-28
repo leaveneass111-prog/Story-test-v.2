@@ -142,6 +142,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnConfirmAccept = document.getElementById("btn-confirm-accept");
 
   const leftSidebar = document.getElementById("left-sidebar");
+  const sidebarOverlay = document.getElementById("sidebar-overlay");
   const rightSidebar = document.getElementById("right-sidebar");
   const btnToggleLeft = document.getElementById("btn-toggle-left");
   const btnCloseLeft = document.getElementById("btn-close-left");
@@ -160,6 +161,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const floatingAiBar = document.getElementById("floating-ai-bar");
 
   let activeAbortController = null;
+
+  function openSidebar() {
+    leftSidebar.classList.remove("collapsed");
+    sidebarOverlay.style.display = "block";
+    sidebarOverlay.setAttribute("aria-hidden", "false");
+  }
+
+  function closeSidebar() {
+    leftSidebar.classList.add("collapsed");
+    sidebarOverlay.style.display = "none";
+    sidebarOverlay.setAttribute("aria-hidden", "true");
+  }
 
   // ================= Custom Confirm Dialog System =================
   let pendingConfirmAction = null;
@@ -290,13 +303,15 @@ document.addEventListener("DOMContentLoaded", () => {
     canvasBody.addEventListener("mouseup", saveCurrentEditorSelection);
 
     if (btnToggleLeft)
-      btnToggleLeft.addEventListener("click", () =>
-        leftSidebar.classList.toggle("collapsed"),
-      );
-    if (btnCloseLeft)
-      btnCloseLeft.addEventListener("click", () =>
-        leftSidebar.classList.add("collapsed"),
-      );
+      btnToggleLeft.addEventListener("click", () => {
+        if (leftSidebar.classList.contains("collapsed")) {
+          openSidebar();
+        } else {
+          closeSidebar();
+        }
+      });
+    if (sidebarOverlay) sidebarOverlay.addEventListener("click", closeSidebar);
+    if (btnCloseLeft) btnCloseLeft.addEventListener("click", closeSidebar);
     if (btnToggleRight)
       btnToggleRight.addEventListener("click", () =>
         rightSidebar.classList.toggle("collapsed"),
@@ -1389,29 +1404,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let actionsHtml = "";
     if (msg.role === "ai" && !msg.isThinking) {
-      const insertBtnHtml = msg.autoSavedToCanvas
+      const autoSavedBadgeHtml = msg.autoSavedToCanvas
         ? `<span class="msg-canvas-synced-badge" style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #10b981; padding: 3px 8px; background: rgba(16,185,129,0.12); border-radius: 4px; font-weight: 500;">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 8.5l3.5 3.5 6.5-7"/></svg>
-            ส่งลงกระดาษแล้ว
+            อัปเดตหน้ากระดาษแล้ว
           </span>`
-        : `<button class="msg-action-btn insert-btn" data-action="insert" data-index="${index}" title="แทรกเนื้อเรื่องลงหน้ากระดาษ">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>
-            แทรกลงในนิยาย
+        : "";
+      const copyActionHtml = msg.autoSavedToCanvas
+        ? ""
+        : `<button class="msg-action-btn" data-action="copy" data-index="${index}" title="คัดลอกข้อความ">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="8" height="8" rx="1.5"/><path d="M3 11V3h8"/></svg>
+            คัดลอก
           </button>`;
 
       actionsHtml = `
         <div class="msg-actions">
-          ${insertBtnHtml}
+          ${autoSavedBadgeHtml}
           <button class="msg-action-btn regen-btn" data-action="regenerate" data-index="${index}" title="สร้างคำตอบนี้ใหม่ (Regenerate)">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M14 8A6 6 0 1 1 8 2c2.4 0 4.5 1.4 5.5 3.5M14 2v4h-4"/>
             </svg>
             สร้างใหม่
           </button>
-          <button class="msg-action-btn" data-action="copy" data-index="${index}" title="คัดลอกข้อความ">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="8" height="8" rx="1.5"/><path d="M3 11V3h8"/></svg>
-            คัดลอก
-          </button>
+          ${copyActionHtml}
         </div>
       `;
     } else if (msg.role === "user") {
@@ -1427,22 +1442,14 @@ document.addEventListener("DOMContentLoaded", () => {
       `;
     }
 
-    const autoSavedBadgeHtml = msg.autoSavedToCanvas
-      ? `
-        <div class="msg-auto-badge">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M2.5 13.5V2.5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v11l-5.5-3-5.5 3z"/>
-          </svg>
-          <span>ส่งเนื้อหานิยายลงหน้ากระดาษตรงกลางเรียบร้อยแล้ว</span>
-        </div>
-      `
-      : "";
-
     el.innerHTML = `
       ${!msg.isThinking ? `<button class="msg-del-btn" data-del-idx="${index}" title="ลบข้อความนี้">✕</button>` : ""}
       ${thinkingHtml}
-      <div class="msg-bubble">${formatAiResponseText(msg.content)}</div>
-      ${autoSavedBadgeHtml}
+      ${
+        !msg.isThinking && !(msg.role === "ai" && msg.autoSavedToCanvas)
+          ? `<div class="msg-bubble">${formatAiResponseText(msg.content)}</div>`
+          : ""
+      }
       ${actionsHtml}
     `;
 
@@ -1489,12 +1496,7 @@ document.addEventListener("DOMContentLoaded", () => {
     el.querySelectorAll(".msg-action-btn, .user-action-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         const action = btn.getAttribute("data-action");
-        if (action === "insert") {
-          const pureStoryText = StoryChatCore.extractPureStoryContent(
-            msg.content,
-          );
-          insertTextIntoEditor(pureStoryText);
-        } else if (action === "copy") {
+        if (action === "copy") {
           const pureStoryText = StoryChatCore.extractPureStoryContent(
             msg.content,
           );
@@ -1617,53 +1619,45 @@ document.addEventListener("DOMContentLoaded", () => {
       .replace(/\n/g, "<br>");
   }
 
-  // แทรกเนื้อหา: แทรกต่อท้ายนิยาย หรือตามตำแหน่งเคอร์เซอร์ที่บันทึกไว้ (ไม่แทรกทับ H1 บนสุด)
-  function insertTextIntoEditor(text, isAuto = false) {
+  // เขียนต่อท้าย หรือแทนที่ช่วงข้อความที่ผู้ใช้เลือกสำหรับคำสั่งปรับแก้
+  function insertTextIntoEditor(
+    text,
+    { mode = "append", targetRange = null, isAuto = false } = {},
+  ) {
     const cleanText = text.replace(/<br\s*[\/]?>/gi, "\n").trim();
-    if (!cleanText) return;
+    if (!cleanText) return false;
 
     const paragraphs = cleanText
       .split(/\n\n+/)
       .map((p) => p.trim())
       .filter(Boolean);
 
-    // ตรวจสอบว่ามีตำแหน่งเคอร์เซอร์ที่บันทึกไว้ และไม่ได้ชี้ไปที่หัวข้อ H1 บรรทัดแรกสุด
-    let insertedAtCursor = false;
-    if (
-      savedEditorRange &&
-      canvasBody.contains(savedEditorRange.commonAncestorContainer)
-    ) {
-      const containerEl =
-        savedEditorRange.commonAncestorContainer.nodeType === 1
-          ? savedEditorRange.commonAncestorContainer
-          : savedEditorRange.commonAncestorContainer.parentElement;
-
-      const isInsideHeadingAtStart =
-        containerEl &&
-        /^H[1-6]$/i.test(containerEl.tagName) &&
-        savedEditorRange.startOffset === 0;
-
-      if (!isInsideHeadingAtStart && !savedEditorRange.collapsed) {
-        // กรณีไฮไลต์ข้อความไว้ ให้แทนที่หรือต่อท้ายย่อหน้าที่เลือก
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(savedEditorRange);
-        const htmlToInsert = paragraphs
-          .map((p) => `<p>${escapeHtml(p)}</p>`)
-          .join("");
-        document.execCommand("insertHTML", false, htmlToInsert);
-        insertedAtCursor = true;
+    if (mode === "replace-selection") {
+      if (
+        !targetRange ||
+        targetRange.collapsed ||
+        !canvasBody.contains(targetRange.commonAncestorContainer)
+      ) {
+        showToast("ไม่พบข้อความที่เลือกเดิม จึงยังไม่ได้เขียนทับเนื้อหา");
+        return false;
       }
-    }
 
-    // ค่าเริ่มต้นที่ปลอดภัยที่สุด: สร้างย่อหน้า <p> ใหม่ต่อท้ายสุดของหน้ากระดาษเสมอ
-    if (!insertedAtCursor) {
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(targetRange);
+      const htmlToInsert = paragraphs
+        .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
+        .join("");
+      document.execCommand("insertHTML", false, htmlToInsert);
+    } else {
+      // คำสั่งเขียนต่อจะต่อท้ายเสมอ ไม่แทนที่ข้อความที่เลือกโดยไม่ตั้งใจ
       paragraphs.forEach((pText) => {
         const p = document.createElement("p");
         p.textContent = pText;
         canvasBody.appendChild(p);
       });
     }
+    savedEditorRange = null;
 
     // เลื่อนหน้ากระดาษลงมาที่ย่อหน้าล่าสุดที่เพิ่งแทรก และ auto-scroll container
     setTimeout(() => {
@@ -1688,6 +1682,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!isAuto) {
       showToast("แทรกเนื้อหานิยายต่อท้ายเรื่องเรียบร้อยแล้ว ✨");
     }
+    return true;
   }
 
   let activeThinkingTimerInterval = null;
@@ -1697,6 +1692,28 @@ document.addEventListener("DOMContentLoaded", () => {
       overridePrompt !== null ? overridePrompt : chatInput.value
     ).trim();
     if (!text || state.isAiResponding) return;
+
+    const isEditRequest = StoryChatCore.isEditingCommand(text);
+    const selectedRange =
+      isEditRequest &&
+      savedEditorRange &&
+      !savedEditorRange.collapsed &&
+      canvasBody.contains(savedEditorRange.commonAncestorContainer)
+        ? savedEditorRange.cloneRange()
+        : null;
+    const selectedText = selectedRange?.toString().trim() || "";
+
+    if (isEditRequest && !selectedText) {
+      showToast("เลือกข้อความในหน้ากระดาษที่ต้องการปรับแก้ก่อนส่งคำสั่ง");
+      return;
+    }
+
+    const requestPrompt =
+      selectedText && isEditRequest
+        ? `${text}\n\n[TEXT_TO_REVISE]\n${selectedText}\n[/TEXT_TO_REVISE]`
+        : text;
+    const canvasWriteMode =
+      isEditRequest && selectedText ? "replace-selection" : "append";
 
     const currentStory = getActiveStory();
     if (!currentStory.chatMessages) currentStory.chatMessages = [];
@@ -1784,7 +1801,7 @@ document.addEventListener("DOMContentLoaded", () => {
           signal: activeAbortController.signal,
           body: JSON.stringify({
             story_id: currentStory.id,
-            prompt: text,
+            prompt: requestPrompt,
             systemInstruction: systemInstructionText,
             recentHistory: recentChatHistory,
             activeStyle: state.activeStyle,
@@ -1883,12 +1900,23 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (data.thinking_logs) tempAiMsg.thinking = data.thinking_logs;
                 if (data.story_output) tempAiMsg.content = data.story_output;
                 if (data.has_canvas && data.canvas_text) {
-                  insertTextIntoEditor(data.canvas_text, true);
-                  if (data.chat_text) tempAiMsg.content = data.chat_text;
-                  tempAiMsg.autoSavedToCanvas = true;
-                  showToast(
-                    "นำเนื้อเรื่องส่งลงหน้ากระดาษตรงกลางเรียบร้อยแล้ว ✍️",
-                  );
+                  const inserted = insertTextIntoEditor(data.canvas_text, {
+                    mode: canvasWriteMode,
+                    targetRange: selectedRange,
+                    isAuto: true,
+                  });
+                  tempAiMsg.canvasInsertAttempted = true;
+                  if (inserted) {
+                    if (data.chat_text) tempAiMsg.content = data.chat_text;
+                    tempAiMsg.autoSavedToCanvas = true;
+                    showToast(
+                      "อัปเดตเนื้อหาในหน้ากระดาษตรงกลางแล้ว ✍️",
+                    );
+                  } else {
+                    tempAiMsg.content = StoryChatCore.cleanCanvasNovelContent(
+                      data.canvas_text,
+                    );
+                  }
                 }
                 pendingThought = true;
                 pendingStory = true;
@@ -1929,9 +1957,9 @@ document.addEventListener("DOMContentLoaded", () => {
         // Fallback กรณี Backend ไม่ได้เปิดใช้งาน - จำลองการสตรีมมิ่งสด
         let fallbackResult;
         if (state.apiKey) {
-          fallbackResult = await callGeminiApi(text);
+          fallbackResult = await callGeminiApi(requestPrompt);
         } else {
-          fallbackResult = await generateSmartNovelResponse(text);
+          fallbackResult = await generateSmartNovelResponse(requestPrompt);
         }
 
         const fallbackContent =
@@ -1994,16 +2022,28 @@ document.addEventListener("DOMContentLoaded", () => {
       lastAiMsg.thoughtOpen = false; // collapse on settle
 
       // แยกแท็กเนื้อเรื่อง <story_canvas> หรือใช้ Smart Story Extractor ส่งเข้าหน้ากระดาษตรงกลางอัตโนมัติ (หากยังไม่ได้แยกจาก structured output)
-      if (!lastAiMsg.autoSavedToCanvas) {
+      if (
+        !lastAiMsg.autoSavedToCanvas &&
+        !lastAiMsg.canvasInsertAttempted
+      ) {
         const splitResult = StoryChatCore.splitChatAndCanvasContent(
           lastAiMsg.content,
-          text,
+          requestPrompt,
         );
         if (splitResult.hasCanvasContent && splitResult.canvasText) {
-          insertTextIntoEditor(splitResult.canvasText, true);
-          lastAiMsg.content = splitResult.chatText;
-          lastAiMsg.autoSavedToCanvas = true;
-          showToast("นำเนื้อเรื่องส่งลงหน้ากระดาษตรงกลางเรียบร้อยแล้ว ✍️");
+          const inserted = insertTextIntoEditor(splitResult.canvasText, {
+            mode: canvasWriteMode,
+            targetRange: selectedRange,
+            isAuto: true,
+          });
+          lastAiMsg.canvasInsertAttempted = true;
+          if (inserted) {
+            lastAiMsg.content = splitResult.chatText;
+            lastAiMsg.autoSavedToCanvas = true;
+            showToast("อัปเดตเนื้อหาในหน้ากระดาษตรงกลางแล้ว ✍️");
+          } else {
+            lastAiMsg.content = splitResult.canvasText;
+          }
         }
       }
 
@@ -2197,6 +2237,7 @@ document.addEventListener("DOMContentLoaded", () => {
       p.includes("เขียน") ||
       p.includes("แต่ง") ||
       p.includes("เกลา") ||
+      StoryChatCore.isEditingCommand(prompt) ||
       p.includes("บทที่") ||
       p.includes("ลงกระดาษ") ||
       p.includes("ฉาก") ||
@@ -2205,7 +2246,11 @@ document.addEventListener("DOMContentLoaded", () => {
       p.includes("บทสนทนา");
 
     if (isWritingCommand) {
-      if (p.includes("เกลา") || p.includes("แก้ไข") || p.includes("ตรวจ")) {
+      if (
+        StoryChatCore.isEditingCommand(prompt) ||
+        p.includes("เกลา") ||
+        p.includes("ตรวจ")
+      ) {
         return {
           thinking:
             baseThinking +
